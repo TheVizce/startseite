@@ -9,7 +9,7 @@ Adresse: https://thevizce.github.io/startseite/
 - **Speicher:** Belegung gesamt, localStorage (gemeinsam, ca. 5 MB) mit Warnung ab 70 %, Größe pro Tool (IndexedDB geschätzt + localStorage nach Präfix), nicht zugeordnete Schlüssel und weitere Datenbanken.
 - Ob „dauerhafter Speicher“ (`navigator.storage.persist()`) aktiv ist, mit Knopf zum Anfragen.
 
-Die Seite **liest nur**: Sie schreibt nichts in den localStorage, öffnet nur Datenbanken, die schon existieren, und gibt sie sofort frei, wenn ein Tool sie upgraden will.
+Die Daten der Tools werden **nur gelesen**: Die Seite öffnet nur Datenbanken, die schon existieren, und gibt sie sofort frei, wenn ein Tool sie upgraden will. Schreiben tut sie nur ihre eigenen Sync-Einstellungen (`toolsync.config`).
 
 ## GitHub-Sync (`sync-v1.js`)
 Gemeinsamer Abgleich für die Tools mit dem privaten Repo `TheVizce/tool-daten`.
