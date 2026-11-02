@@ -94,6 +94,15 @@
   code { font-size: 12.5px; background: var(--panel2); padding: 1px 5px; border-radius: 5px; }
   ul.help { margin: 6px 0 0; padding-left: 20px; }
   ul.help li { margin: 4px 0; }
+  .syncform { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .syncform label { min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); }
+  .syncform .wide { grid-column: 1 / -1; }
+  .syncform input {
+    font: inherit; font-size: 15px; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 10px; padding: 8px 10px; min-width: 0;
+  }
+  .syncform input:focus { outline: none; border-color: var(--accent); }
+  @media (max-width: 560px) { .syncform { grid-template-columns: repeat(2, minmax(0, 1fr)); } .syncform label:nth-child(3) { grid-column: 1 / -1; } }
 </style>
 </head>
 <body>
@@ -131,9 +140,36 @@
       <ul class="help muted small">
         <li><b>Datenbank</b>: IndexedDB des Tools. Die Größe ist geschätzt (Inhalt der Einträge, Bilder in voller Größe). Der Browser braucht intern etwas mehr.</li>
         <li><b>localStorage</b>: alle Schlüssel mit dem Präfix des Tools. Alle Tools teilen sich hier ca. 5 MB.</li>
-        <li>Die Startseite liest nur. Sie legt keine Datenbank an und ändert oder löscht nichts.</li>
+        <li>Die Startseite liest die Daten der Tools nur. Sie legt keine Datenbank an und ändert nichts. Sie schreibt nur ihre eigenen Sync-Einstellungen (<code>toolsync.config</code>).</li>
         <li>Gilt nur für diesen Browser. In der Home-Bildschirm-App auf dem iPhone ist der Speicher getrennt von Safari.</li>
       </ul>
+    </details>
+  </div>
+
+  <h2 id="sync">GitHub-Sync</h2>
+  <div class="panel">
+    <p class="small muted" style="margin-top:0">Einmal pro Gerät eintragen (am iPhone auch einmal in der Home-Bildschirm-App). Danach gleichen die angebundenen Tools ihre Daten automatisch mit dem privaten Daten-Repo ab.</p>
+    <form id="syncForm" class="syncform" autocomplete="off">
+      <label>GitHub-Name<input name="owner" required placeholder="TheVizce"></label>
+      <label>Daten-Repo<input name="repo" required placeholder="tool-daten"></label>
+      <label>Branch<input name="branch" required placeholder="main"></label>
+      <label class="wide">Token<input name="token" type="password" placeholder="github_pat_…" autocomplete="new-password" spellcheck="false"></label>
+      <div class="row wide">
+        <button type="submit">Speichern &amp; prüfen</button>
+        <button type="button" id="btnUnlink">Auf diesem Gerät trennen</button>
+      </div>
+    </form>
+    <div id="syncMsgs"></div>
+    <div class="tablewrap" style="margin-top:12px">
+      <table>
+        <thead><tr><th>Tool</th><th>Letzter Abgleich auf diesem Gerät</th></tr></thead>
+        <tbody id="syncRows"></tbody>
+      </table>
+    </div>
+    <details>
+      <summary>Sicherheitskopien</summary>
+      <p class="small muted">Vor dem ersten Abgleich und vor jedem Massenlöschen legt der Sync eine Kopie der lokalen Daten an. Hier kannst du sie als JSON herunterladen und im jeweiligen Tool importieren.</p>
+      <div id="safetyList" class="small"></div>
     </details>
   </div>
 
@@ -150,15 +186,16 @@
 
 <script>
 'use strict';
-// Liest nur. Kein localStorage.setItem/removeItem/clear, keine neue IndexedDB.
+// Liest die Daten der Tools nur. Schreibt ausschließlich den eigenen Schlüssel "toolsync.config".
+// Kein localStorage.clear(), legt keine Datenbank an.
 
 const TOOLS = [
   { id: 'pokemon-go', name: 'GO Organizer', ico: '🟢', path: '/pokemon-go/',
     desc: 'Pokémon GO: Pokémon, Freunde, Postkarten, Vivillon',
-    dbs: ['pokemon-go-tool'], ls: ['go-organizer'], tags: [] },
+    dbs: ['pokemon-go-tool'], ls: ['go-organizer'], tags: ['sync'], toolsync: true },
   { id: 'pokemon-home', name: 'Pokémon-Boxen', ico: '📦', path: '/pokemon-home/',
     desc: 'Pokémon aus Pokémon Home verwalten',
-    dbs: ['pokemon-home-tool'], ls: ['pkbox.'], tags: [] },
+    dbs: ['pokemon-home-tool'], ls: ['pkbox.'], tags: ['sync'], toolsync: true },
   { id: 'kartenbinder', name: 'Kartenbinder', ico: '🃏', path: '/kartenbinder/',
     desc: 'Pokémon TCG und TCG Pocket',
     dbs: ['kartenbinder'], ls: ['kartenbinder.', 'kb.'], tags: ['sync'] },
@@ -174,8 +211,9 @@ const TOOLS = [
   { id: 'nh-favoriten', name: 'Favoriten-Archiv', ico: '📚', path: '/nh-favoriten/',
     desc: 'nhentai-Favoriten archivieren und synchronisieren',
     dbs: ['nh-fav-archiv'], ls: ['nhfav-'], tags: ['script'] },
+  { id: '_toolsync', name: 'Sync (Abgleich-Stand)', ico: '☁︎', hidden: true, dbs: ['toolsync'], ls: [], tags: [] },
 ];
-const SELF = { name: 'Startseite', ls: ['startseite.'] };
+const SELF = { name: 'Startseite', ls: ['startseite.', 'toolsync.'] };
 const LS_LIMIT = 5 * 1024 * 1024;
 
 const $ = s => document.querySelector(s);
@@ -201,7 +239,7 @@ const TAG_HTML = {
   local: '<span class="tag" title="Daten liegen nur in diesem Browser – Backups machen">nur lokal</span>',
 };
 function renderTools() {
-  $('#tools').innerHTML = TOOLS.map(t => `
+  $('#tools').innerHTML = TOOLS.filter(t => !t.hidden).map(t => `
     <a class="tool" href="${t.path}">
       <div class="top"><div class="ico" aria-hidden="true">${t.ico}</div><div class="name">${esc(t.name)}</div></div>
       <div class="desc">${esc(t.desc)}</div>
@@ -404,6 +442,118 @@ async function measure() {
   }
 }
 
+// ---------- GitHub-Sync ----------
+const SYNC_KEY = 'toolsync.config';
+function syncMsg(text, kind) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + (kind || '');
+  d.innerHTML = text;
+  $('#syncMsgs').appendChild(d);
+}
+function readSyncCfg() {
+  try { return JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); } catch (e) { return null; }
+}
+function fillSyncForm() {
+  const c = readSyncCfg() || {};
+  const f = $('#syncForm');
+  f.owner.value = c.owner || 'TheVizce';
+  f.repo.value = c.repo || 'tool-daten';
+  f.branch.value = c.branch || 'main';
+  f.token.value = '';
+  f.token.placeholder = c.token ? 'gespeichert (…' + c.token.slice(-4) + ') – leer lassen zum Behalten' : 'github_pat_…';
+  $('#btnUnlink').hidden = !c.token;
+}
+async function checkRepo(c) {
+  const h = { Authorization: 'Bearer ' + c.token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  const r = await fetch(`https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}`, { headers: h, cache: 'no-store' });
+  if (r.status === 401) throw new Error('Token ungültig oder abgelaufen.');
+  if (r.status === 404) throw new Error(`Repo ${c.owner}/${c.repo} nicht gefunden, oder der Token hat keinen Zugriff darauf.`);
+  if (!r.ok) throw new Error('GitHub antwortet mit Fehler ' + r.status + '.');
+  const j = await r.json();
+  const b = await fetch(`https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/branches/${encodeURIComponent(c.branch)}`, { headers: h, cache: 'no-store' });
+  if (b.status === 404) throw new Error(`Branch „${c.branch}“ gibt es im Repo nicht. Beim Anlegen „Add a README file“ anhaken, dann existiert „main“.`);
+  return j;
+}
+$('#syncForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('#syncMsgs').innerHTML = '';
+  const f = e.target, old = readSyncCfg() || {};
+  const c = { owner: f.owner.value.trim(), repo: f.repo.value.trim(), branch: f.branch.value.trim() || 'main', token: f.token.value.trim() || old.token || '' };
+  if (!c.token) { syncMsg('Bitte einen Token eintragen.', 'warn'); return; }
+  const btn = f.querySelector('button[type=submit]'); btn.disabled = true;
+  try {
+    const repo = await checkRepo(c);
+    try { localStorage.setItem(SYNC_KEY, JSON.stringify(c)); }
+    catch (err) { syncMsg('Konnte die Einstellungen nicht speichern: ' + esc(err.message || err) + ' – ist der localStorage voll?', 'bad'); return; }
+    syncMsg(`✓ Verbunden mit <b>${esc(repo.full_name)}</b>. Die angebundenen Tools gleichen beim nächsten Öffnen automatisch ab.`, 'ok');
+    if (!repo.private) syncMsg('<b>Achtung:</b> Das Repo ist öffentlich. Deine Daten wären für alle sichtbar. Stelle es unter Settings → General → Danger Zone auf „Private“.', 'bad');
+    fillSyncForm();
+  } catch (err) {
+    syncMsg(esc(err.message || err), 'bad');
+  } finally { btn.disabled = false; }
+});
+$('#btnUnlink').addEventListener('click', () => {
+  if (!confirm('Sync auf diesem Gerät trennen? Die Daten in den Tools und im Repo bleiben erhalten.')) return;
+  try { localStorage.removeItem(SYNC_KEY); } catch (e) {}
+  $('#syncMsgs').innerHTML = '';
+  syncMsg('Getrennt. Die Tools speichern ab jetzt nur noch lokal.', 'ok');
+  fillSyncForm();
+});
+
+// Abgleich-Stand und Sicherheitskopien aus der Datenbank "toolsync" lesen – nur wenn sie schon existiert
+function readSyncDb() {
+  return new Promise(async resolve => {
+    try {
+      if (typeof indexedDB.databases !== 'function') return resolve(null);
+      const list = await indexedDB.databases();
+      if (!list.some(d => d.name === 'toolsync')) return resolve({ meta: {}, safety: [] });
+      const req = indexedDB.open('toolsync');
+      req.onupgradeneeded = () => { try { req.transaction.abort(); } catch (e) {} };
+      req.onerror = req.onblocked = () => resolve(null);
+      req.onsuccess = () => {
+        const d = req.result; d.onversionchange = () => d.close();
+        const names = Array.from(d.objectStoreNames);
+        if (!names.includes('meta') || !names.includes('safety')) { d.close(); return resolve({ meta: {}, safety: [] }); }
+        const out = { meta: {}, safety: [] };
+        const t = d.transaction(['meta', 'safety'], 'readonly');
+        const mc = t.objectStore('meta').openCursor();
+        mc.onsuccess = () => { const c = mc.result; if (c) { out.meta[c.key] = { lastSync: c.value.lastSync }; c.continue(); } };
+        const sc = t.objectStore('safety').openCursor();
+        sc.onsuccess = () => { const c = sc.result; if (c) { out.safety.push({ key: c.key, tool: c.value.tool, reason: c.value.reason, at: c.value.at }); c.continue(); } };
+        t.oncomplete = () => { d.close(); resolve(out); };
+        t.onerror = () => { d.close(); resolve(null); };
+      };
+    } catch (e) { resolve(null); }
+  });
+}
+function downloadSafety(key) {
+  const req = indexedDB.open('toolsync');
+  req.onsuccess = () => {
+    const d = req.result;
+    const q = d.transaction('safety', 'readonly').objectStore('safety').get(key);
+    q.onsuccess = () => {
+      d.close();
+      const v = q.result; if (!v) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(v.data, null, 2)], { type: 'application/json' }));
+      a.download = `${v.tool}-sicherheitskopie-${String(v.at).slice(0, 10)}.json`;
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    };
+  };
+}
+async function renderSyncStatus() {
+  const s = await readSyncDb();
+  const fmtT = t => t ? new Date(t).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : 'noch nie';
+  $('#syncRows').innerHTML = TOOLS.filter(t => t.toolsync).map(t =>
+    `<tr><td>${t.ico} ${esc(t.name)}</td><td>${s ? fmtT(s.meta[t.id] && s.meta[t.id].lastSync) : '?'}</td></tr>`).join('')
+    + `<tr><td colspan="2" class="small muted">Kartenbinder und Videothek haben ihren eigenen Sync (Einstellungen im jeweiligen Tool).</td></tr>`;
+  const list = s ? s.safety.sort((a, b) => String(b.at).localeCompare(String(a.at))) : [];
+  $('#safetyList').innerHTML = list.length
+    ? list.map(x => `<div class="row" style="margin:6px 0"><button data-k="${esc(x.key)}">Herunterladen</button> <span>${esc(x.tool)} · ${esc(x.reason)} · ${fmtT(x.at)}</span></div>`).join('')
+    : '<span class="muted">Noch keine.</span>';
+  $('#safetyList').querySelectorAll('button[data-k]').forEach(b => b.onclick = () => downloadSafety(b.dataset.k));
+}
+
 $('#btnPersist').addEventListener('click', async () => {
   try {
     const ok = await navigator.storage.persist();
@@ -417,7 +567,9 @@ $('#btnRefresh').addEventListener('click', measure);
 
 renderMode();
 renderTools();
+fillSyncForm();
 measure();
+renderSyncStatus();
 </script>
 </body>
 </html>
