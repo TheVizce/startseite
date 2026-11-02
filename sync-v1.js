@@ -14,9 +14,12 @@
  *
  * Weitere Optionen:
  *   collections: { entries: { type: 'array', id: '_id' } }  – anderes ID-Feld als "id"
+ *   collections: { cards: { type: 'map', shard: true } }      – großes Objekt ebenfalls aufteilen (nur mit shards)
  *   shards: 32      – große Datenmengen auf einen Ordner verteilen: <tool>/main.json (Objekte, Einzelwerte)
  *                     und <tool>/s00.json … s31.json (Listeneinträge nach ID). Hochgeladen werden nur
  *                     geänderte Teile. Die Zahl darf später nicht mehr geändert werden.
+ *   firstSync: 'cloud' – beim ersten Abgleich eines Geräts den Cloud-Stand vollständig übernehmen
+ *                     (nur lokal vorhandene Einträge entfallen; sie stehen in der Sicherheitskopie)
  *   stampDelay: ms  – Wartezeit vor dem Erkennen von Änderungen (bei großen Datenmengen höher)
  *   badge: false | { bottom, left }, home: false
  *   get darf auch ein Promise liefern (z. B. Daten direkt aus der IndexedDB lesen)
@@ -191,6 +194,8 @@
     const STAMP_WAIT = opts.stampDelay || STAMP_DELAY;
     const collType = c => (typeof COLLS[c] === 'string' ? COLLS[c] : (COLLS[c] && COLLS[c].type)) || 'array';
     const collId = c => (COLLS[c] && typeof COLLS[c] === 'object' && COLLS[c].id) || 'id';
+    // Objekte (map) liegen in main.json, außer sie sind mit { type: 'map', shard: true } zum Aufteilen markiert
+    const sharded = c => collType(c) === 'array' || !!(COLLS[c] && typeof COLLS[c] === 'object' && COLLS[c].shard);
     const CNAMES = Object.keys(COLLS);
 
     /* Dateien im Daten-Repo: eine Datei, oder ein Ordner mit main.json (Objekte + Einzelwerte) und sNN.json (Listen) */
@@ -209,8 +214,8 @@
       }
       return k;
     }
-    const unitOf = (c, id) => !SHARDS || collType(c) === 'map' ? UNITS[0] : UNITS[1 + shardOf(id)];
-    const unitColls = u => CNAMES.filter(c => u.all || (u.main ? collType(c) === 'map' : collType(c) === 'array'));
+    const unitOf = (c, id) => !SHARDS || !sharded(c) ? UNITS[0] : UNITS[1 + shardOf(id)];
+    const unitColls = u => CNAMES.filter(c => u.all || (u.main ? !sharded(c) : sharded(c)));
     const unitFields = u => (u.all || u.main) ? FIELDS : [];
 
     let queue = Promise.resolve();
@@ -283,7 +288,7 @@
 
     /* Eine Datei zusammenführen. Pro Eintrag gewinnt die jüngste Änderung (auch eine Löschung).
        Bei Gleichstand gewinnt der entfernte Stand. */
-    function mergeUnit(meta, L, state, R, keep, u) {
+    function mergeUnit(meta, L, state, R, keep, u, cloudOnly) {
       const rData = (R && R.data) || {}, rU = (R && R.u) || {}, rDel = (R && R.del) || {}, rFu = (R && R.fu) || {};
       const out = { data: {}, u: {}, del: {}, fu: {} };
       const res = { unit: u, localChanged: false, deletions: [], existing: 0 };
@@ -302,6 +307,8 @@
         for (const id of ids) {
           const hasL = L[c].has(id), hasR = Rm.has(id);
           if (hasL || hasR) res.existing++;
+          // firstSync 'cloud': beim ersten Abgleich gilt der Cloud-Stand, nur lokal vorhandene Einträge entfallen
+          if (cloudOnly && hasL && !hasR) { res.localChanged = true; continue; }
           const tL = hasL ? (lu[id] != null ? lu[id] : 0) : -1;
           const tR = hasR ? (ru[id] != null ? ru[id] : 0) : -1;
           const keepIt = keep && keep.has(c + '\u0000' + id);
@@ -341,7 +348,7 @@
       const byUnit = new Map(plans.map(p => [p.unit, p]));
       const data = {};
       for (const c of CNAMES) {
-        if (collType(c) === 'map') {
+        if (SHARDS ? !sharded(c) : collType(c) === 'map') {
           const p = byUnit.get(UNITS[0]);
           data[c] = p ? p.out.data[c] : native(c, L[c]);
           continue;
@@ -353,6 +360,7 @@
           const u = unitOf(c, id), got = pm.get(u);
           if (!got) M.set(id, v); else if (got.has(id)) M.set(id, got.get(id));
         }
+        // (gilt für Listen und aufgeteilte Objekte gleichermaßen)
         for (const got of pm.values()) for (const [id, v] of got) if (!M.has(id)) M.set(id, v);
         data[c] = native(c, M);
       }
@@ -431,7 +439,8 @@
               if (todo.length > 3) setStatus('syncing', `Lade ${++got} von ${todo.length} Dateien…`);
               return r;
             });
-            let plans = todo.map((u, i) => mergeUnit(meta, L, state, remotes[i].json, null, u));
+            const cloudOnly = opts.firstSync === 'cloud' && !meta.init && (SHARDS ? Object.keys(listing).length > 0 : !!remotes[0].json);
+            let plans = todo.map((u, i) => mergeUnit(meta, L, state, remotes[i].json, null, u, cloudOnly));
 
             // Schutz vor versehentlichem Massenlöschen
             const dels = [].concat(...plans.map(p => p.deletions));
@@ -446,7 +455,7 @@
                 const keep = new Set(dels.map(d => d.c + '\u0000' + d.id));
                 const now = Date.now();
                 for (const d of dels) { delete meta.del[d.c][d.id]; if (d.local) meta.u[d.c][d.id] = now; }
-                plans = todo.map((u, i) => mergeUnit(meta, L, state, remotes[i].json, keep, u));
+                plans = todo.map((u, i) => mergeUnit(meta, L, state, remotes[i].json, keep, u, cloudOnly));
               }
             }
 

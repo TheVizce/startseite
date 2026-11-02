@@ -198,7 +198,7 @@ const TOOLS = [
     dbs: ['pokemon-home-tool'], ls: ['pkbox.'], tags: ['sync'], toolsync: true },
   { id: 'kartenbinder', name: 'Kartenbinder', ico: '🃏', path: '/kartenbinder/',
     desc: 'Pokémon TCG und TCG Pocket',
-    dbs: ['kartenbinder'], ls: ['kartenbinder.', 'kb.'], tags: ['sync'] },
+    dbs: ['kartenbinder'], ls: ['kartenbinder.', 'kb.'], tags: ['sync'], toolsync: true },
   { id: 'videothek', name: 'Videothek', ico: '🎬', path: '/videothek/',
     desc: 'YouTube-Bibliothek mit Reihen und Reactions',
     dbs: ['videothek-tool'], ls: ['videothek:'], tags: ['sync'] },
@@ -549,7 +549,7 @@ async function renderSyncStatus() {
   const fmtT = t => t ? new Date(t).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : 'noch nie';
   $('#syncRows').innerHTML = TOOLS.filter(t => t.toolsync).map(t =>
     `<tr><td>${t.ico} ${esc(t.name)}</td><td>${s ? fmtT(s.meta[t.syncId || t.id] && s.meta[t.syncId || t.id].lastSync) : '?'}</td></tr>`).join('')
-    + `<tr><td colspan="2" class="small muted">Kartenbinder und Videothek haben ihren eigenen Sync (Einstellungen im jeweiligen Tool).</td></tr>`;
+    + `<tr><td colspan="2" class="small muted">Die Videothek hat ihren eigenen Sync (Einstellungen in der Videothek).</td></tr>`;
   const list = s ? s.safety.sort((a, b) => String(b.at).localeCompare(String(a.at))) : [];
   $('#safetyList').innerHTML = list.length
     ? list.map(x => `<div class="row" style="margin:6px 0"><button data-k="${esc(x.key)}">Herunterladen</button> <span>${esc(x.tool)} · ${esc(x.reason)} · ${fmtT(x.at)}</span></div>`).join('')
