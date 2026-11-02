@@ -278,6 +278,7 @@ function readLocalStorage() {
 }
 
 // ---------- IndexedDB (nur lesen) ----------
+let BLOB_BYTES = 0;
 function approxSize(v, seen) {
   if (v == null) return 0;
   switch (typeof v) {
@@ -288,9 +289,9 @@ function approxSize(v, seen) {
     case 'object': break;
     default: return 0;
   }
-  if (typeof Blob !== 'undefined' && v instanceof Blob) return v.size;
-  if (v instanceof ArrayBuffer) return v.byteLength;
-  if (ArrayBuffer.isView(v)) return v.byteLength;
+  if (typeof Blob !== 'undefined' && v instanceof Blob) { BLOB_BYTES += v.size; return v.size; }
+  if (v instanceof ArrayBuffer) { BLOB_BYTES += v.byteLength; return v.byteLength; }
+  if (ArrayBuffer.isView(v)) { BLOB_BYTES += v.byteLength; return v.byteLength; }
   if (v instanceof Date) return 8;
   if (seen.has(v)) return 0;
   seen.add(v);
@@ -318,6 +319,7 @@ function measureDb(name) {
       const stores = Array.from(db.objectStoreNames);
       if (!stores.length) { db.close(); return resolve({ bytes: 0, count: 0 }); }
       let bytes = 0, count = 0;
+      const blob0 = BLOB_BYTES;
       let tx;
       try { tx = db.transaction(stores, 'readonly'); }
       catch (e) { db.close(); return resolve({ error: e.message }); }
@@ -331,7 +333,7 @@ function measureDb(name) {
           c.continue();
         };
       }
-      tx.oncomplete = () => { db.close(); resolve({ bytes, count, stores: stores.length }); };
+      tx.oncomplete = () => { db.close(); resolve({ bytes, count, stores: stores.length, blobs: BLOB_BYTES - blob0 }); };
       tx.onerror = tx.onabort = () => { db.close(); resolve({ error: (tx.error && tx.error.message) || 'Lesefehler', bytes, count }); };
     };
   });
@@ -399,7 +401,7 @@ async function measure() {
     const rows = [];
     const lsShare = id => ls.byTool && ls.byTool[id];
     for (const t of TOOLS) {
-      let dbBytes = null, count = null, err = null, found = false;
+      let dbBytes = null, count = null, err = null, found = false, blobs = 0;
       for (const name of t.dbs) {
         if (!existing.has(name)) continue;
         found = true;
@@ -407,9 +409,10 @@ async function measure() {
         if (m.error) err = m.error;
         dbBytes = (dbBytes || 0) + (m.bytes || 0);
         count = (count || 0) + (m.count || 0);
+        blobs += m.blobs || 0;
       }
       const l = lsShare(t.id);
-      rows.push({ t, dbBytes, count, err, found, ls: l });
+      rows.push({ t, dbBytes, count, err, found, ls: l, blobs });
       const total = (dbBytes || 0) + (l ? l.bytes : 0);
       const chip = $('#size-' + t.id);
       if (chip) chip.textContent = found || l ? fmt(total) : 'noch leer';
@@ -422,7 +425,7 @@ async function measure() {
       const lsCls = lsR > 0.1 ? 'bad' : lsR > 0.05 ? 'warn' : '';
       return `<tr>
         <td>${r.t.ico} ${esc(r.t.name)}${r.err ? `<div class="small" style="color:var(--bad)">${esc(r.err)}</div>` : ''}</td>
-        <td class="num">${r.found ? fmt(r.dbBytes) : dbl.error ? '?' : '<span class="muted">keine</span>'}</td>
+        <td class="num">${r.found ? fmt(r.dbBytes) + (r.blobs > 0 ? `<div class="small muted">Daten ${fmt(r.dbBytes - r.blobs)} · Bilder ${fmt(r.blobs)}</div>` : '') : dbl.error ? '?' : '<span class="muted">keine</span>'}</td>
         <td class="num">${r.ls ? fmt(r.ls.bytes) + `<div class="lsbar ${lsCls}"><span style="width:${Math.min(100, lsR * 100 * 10).toFixed(0)}%"></span></div>` : '<span class="muted">–</span>'}</td>
         <td class="num">${r.count != null ? r.count.toLocaleString('de-DE') : '–'}</td>
       </tr>`;
