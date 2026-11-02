@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#111318">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tools">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Meine Tools</title>
+<style>
+  :root {
+    --bg: #111318; --panel: #1a1d24; --panel2: #222631; --line: #2d3240;
+    --text: #e8eaf0; --muted: #9aa1b2; --accent: #7c9cff;
+    --ok: #4cc38a; --warn: #e5b04a; --bad: #ef6464;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+             max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  main { max-width: 980px; margin: 0 auto; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 4px 0 18px; }
+  h1 { font-size: 24px; margin: 0; }
+  h2 { font-size: 17px; margin: 28px 0 10px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  .mode { font-size: 13px; color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .tool {
+    display: flex; flex-direction: column; gap: 6px; padding: 14px; min-height: 132px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    color: inherit; text-decoration: none; transition: border-color .15s, transform .15s;
+  }
+  .tool:hover, .tool:focus-visible { border-color: var(--accent); outline: none; }
+  .tool:active { transform: scale(.98); }
+  .tool .top { display: flex; align-items: center; gap: 10px; }
+  .tool .ico { font-size: 26px; width: 40px; height: 40px; display: grid; place-items: center; background: var(--panel2); border-radius: 10px; flex: none; }
+  .tool .name { font-weight: 600; font-size: 16px; }
+  .tool .desc { color: var(--muted); font-size: 13px; flex: 1; }
+  @media (max-width: 560px) {
+    .grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .tool { min-height: 0; padding: 12px; }
+    .tool .top { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .tool .name { font-size: 15px; }
+    .tool .desc { display: none; }
+    .tag { font-size: 11px; padding: 2px 7px; }
+  }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 11.5px; padding: 2px 8px; border-radius: 99px; background: var(--panel2); color: var(--muted); white-space: nowrap; }
+  .tag.ok { color: var(--ok); }
+  .tag.warn { color: var(--warn); }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
+  .total { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; }
+  .bar { height: 8px; background: var(--panel2); border-radius: 99px; overflow: hidden; margin: 10px 0 4px; }
+  .bar > span { display: block; height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+  .bar.warn > span { background: var(--warn); }
+  .bar.bad > span { background: var(--bad); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 12.5px; }
+  td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: 0; }
+  .lsbar { height: 4px; background: var(--panel2); border-radius: 99px; margin-top: 4px; overflow: hidden; }
+  .lsbar > span { display: block; height: 100%; background: var(--accent); }
+  .lsbar.warn > span { background: var(--warn); }
+  .lsbar.bad > span { background: var(--bad); }
+  .tablewrap { overflow-x: auto; }
+
+  button {
+    font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 7px 12px; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .msg { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--panel2); font-size: 13.5px; }
+  .msg.warn { border-left: 3px solid var(--warn); }
+  .msg.bad { border-left: 3px solid var(--bad); }
+  .msg.ok { border-left: 3px solid var(--ok); }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
+  code { font-size: 12.5px; background: var(--panel2); padding: 1px 5px; border-radius: 5px; }
+  ul.help { margin: 6px 0 0; padding-left: 20px; }
+  ul.help li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Meine Tools</h1>
+    <span class="mode" id="mode"></span>
+  </header>
+
+  <section class="grid" id="tools" aria-label="Tools"></section>
+
+  <h2>Speicher</h2>
+  <div class="panel">
+    <div class="total">
+      <div><span class="muted small">Belegt gesamt</span><br><strong id="usage">…</strong> <span class="muted small" id="quota"></span></div>
+      <div><span class="muted small">localStorage (gemeinsam, ca. 5 MB)</span><br><strong id="lsTotal">…</strong></div>
+      <div><span class="muted small">Dauerhafter Speicher</span><br><strong id="persist">…</strong></div>
+    </div>
+    <div class="bar" id="lsBar" title="localStorage-Belegung"><span></span></div>
+    <div class="muted small">Balken: localStorage-Belegung. Das ist der knappe, gemeinsame Teil.</div>
+    <div class="row" style="margin-top:12px">
+      <button id="btnPersist">Dauerhaften Speicher anfragen</button>
+      <button id="btnRefresh">Neu messen</button>
+    </div>
+    <div id="msgs"></div>
+  </div>
+
+  <div class="panel tablewrap" style="margin-top:12px">
+    <table>
+      <thead><tr><th>Tool</th><th class="num">Datenbank</th><th class="num">localStorage</th><th class="num">Einträge</th></tr></thead>
+      <tbody id="storeRows"></tbody>
+    </table>
+    <details>
+      <summary>Was wird hier gemessen?</summary>
+      <ul class="help muted small">
+        <li><b>Datenbank</b>: IndexedDB des Tools. Die Größe ist geschätzt (Inhalt der Einträge, Bilder in voller Größe). Der Browser braucht intern etwas mehr.</li>
+        <li><b>localStorage</b>: alle Schlüssel mit dem Präfix des Tools. Alle Tools teilen sich hier ca. 5 MB.</li>
+        <li>Die Startseite liest nur. Sie legt keine Datenbank an und ändert oder löscht nichts.</li>
+        <li>Gilt nur für diesen Browser. In der Home-Bildschirm-App auf dem iPhone ist der Speicher getrennt von Safari.</li>
+      </ul>
+    </details>
+  </div>
+
+  <h2>Am iPhone</h2>
+  <div class="panel small">
+    <ul class="help" style="margin-top:0">
+      <li>Diese Seite in Safari öffnen → Teilen → <b>Zum Home-Bildschirm</b>. Tools von hier aus öffnen, dann bleiben sie im selben App-Fenster und teilen sich einen Speicher.</li>
+      <li>Die App hat <b>eigenen Speicher, getrennt von Safari</b>. Daten einmal per Backup aus Safari exportieren und in der App importieren.</li>
+      <li>Tools mit <span class="tag warn">Browserskript</span> brauchen Tampermonkey/Userscripts. Das läuft nur in Safari, nicht in der App. Diese Tools also in Safari nutzen.</li>
+      <li>In der App gibt es keine Zurück-Taste. Zur Startseite kommst du über einen Wisch vom linken Rand.</li>
+    </ul>
+  </div>
+</main>
+
+<script>
+'use strict';
+// Liest nur. Kein localStorage.setItem/removeItem/clear, keine neue IndexedDB.
+
+const TOOLS = [
+  { id: 'pokemon-go', name: 'GO Organizer', ico: '🟢', path: '/pokemon-go/',
+    desc: 'Pokémon GO: Pokémon, Freunde, Postkarten, Vivillon',
+    dbs: ['pokemon-go-tool'], ls: ['go-organizer'], tags: [] },
+  { id: 'pokemon-home', name: 'Pokémon-Boxen', ico: '📦', path: '/pokemon-home/',
+    desc: 'Pokémon aus Pokémon Home verwalten',
+    dbs: ['pokemon-home-tool'], ls: ['pkbox.'], tags: [] },
+  { id: 'kartenbinder', name: 'Kartenbinder', ico: '🃏', path: '/kartenbinder/',
+    desc: 'Pokémon TCG und TCG Pocket',
+    dbs: ['kartenbinder'], ls: ['kartenbinder.', 'kb.'], tags: ['sync'] },
+  { id: 'videothek', name: 'Videothek', ico: '🎬', path: '/videothek/',
+    desc: 'YouTube-Bibliothek mit Reihen und Reactions',
+    dbs: ['videothek-tool'], ls: ['videothek:'], tags: ['sync'] },
+  { id: 'b-organizer', name: 'Babe Organizer', ico: '🗂️', path: '/b-organizer/',
+    desc: 'Babepedia-Profile importieren und verwalten',
+    dbs: ['bp-organizer'], ls: ['bp-organizer', 'bp_batch_data'], tags: ['script'] },
+  { id: 'Image-Ranker', name: 'Image Ranker', ico: '🏆', path: '/Image-Ranker/',
+    desc: 'Bilder per Vergleich ranken',
+    dbs: ['ImageRankerDB'], ls: ['ranker.'], tags: [] },
+  { id: 'nh-favoriten', name: 'Favoriten-Archiv', ico: '📚', path: '/nh-favoriten/',
+    desc: 'nhentai-Favoriten archivieren und synchronisieren',
+    dbs: ['nh-fav-archiv'], ls: ['nhfav-'], tags: ['script'] },
+];
+const SELF = { name: 'Startseite', ls: ['startseite.'] };
+const LS_LIMIT = 5 * 1024 * 1024;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function fmt(b) {
+  if (b == null) return '–';
+  if (b < 1024) return b + ' B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(b < 10240 ? 1 : 0) + ' KB';
+  if (b < 1024 ** 3) return (b / 1024 / 1024).toFixed(1) + ' MB';
+  return (b / 1024 ** 3).toFixed(2) + ' GB';
+}
+function msg(text, kind) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + (kind || '');
+  d.innerHTML = text;
+  $('#msgs').appendChild(d);
+}
+
+// ---------- Kacheln ----------
+const TAG_HTML = {
+  sync: '<span class="tag ok" title="Daten werden zusätzlich auf GitHub gespeichert">☁︎ GitHub-Sync</span>',
+  script: '<span class="tag warn" title="Braucht ein Tampermonkey-Skript – am iPhone nur in Safari">Browserskript</span>',
+  local: '<span class="tag" title="Daten liegen nur in diesem Browser – Backups machen">nur lokal</span>',
+};
+function renderTools() {
+  $('#tools').innerHTML = TOOLS.map(t => `
+    <a class="tool" href="${t.path}">
+      <div class="top"><div class="ico" aria-hidden="true">${t.ico}</div><div class="name">${esc(t.name)}</div></div>
+      <div class="desc">${esc(t.desc)}</div>
+      <div class="tags">${(t.tags.includes('sync') ? [] : ['local']).concat(t.tags).map(k => TAG_HTML[k]).join('')}<span class="tag" id="size-${t.id}">…</span></div>
+    </a>`).join('');
+}
+
+function renderMode() {
+  const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  $('#mode').textContent = standalone ? 'Home-Bildschirm-App · eigener Speicher' : 'Im Browser';
+}
+
+// ---------- localStorage (nur lesen) ----------
+function readLocalStorage() {
+  const out = { total: 0, byTool: {}, unknown: [] };
+  let ls;
+  try { ls = window.localStorage; if (!ls) throw new Error('nicht verfügbar'); }
+  catch (e) { out.error = e.message || String(e); return out; }
+  const owners = TOOLS.concat([Object.assign({ id: '_self' }, SELF)]);
+  try {
+    for (let i = 0; i < ls.length; i++) {
+      const k = ls.key(i);
+      const v = ls.getItem(k) || '';
+      const bytes = (k.length + v.length) * 2; // UTF-16
+      out.total += bytes;
+      const owner = owners.find(t => t.ls.some(p => k.startsWith(p)));
+      if (owner) {
+        const o = out.byTool[owner.id] || (out.byTool[owner.id] = { bytes: 0, keys: 0 });
+        o.bytes += bytes; o.keys++;
+      } else {
+        out.unknown.push({ key: k, bytes });
+      }
+    }
+  } catch (e) { out.error = e.message || String(e); }
+  return out;
+}
+
+// ---------- IndexedDB (nur lesen) ----------
+function approxSize(v, seen) {
+  if (v == null) return 0;
+  switch (typeof v) {
+    case 'string': return v.length * 2;
+    case 'number': return 8;
+    case 'boolean': return 4;
+    case 'bigint': return 8;
+    case 'object': break;
+    default: return 0;
+  }
+  if (typeof Blob !== 'undefined' && v instanceof Blob) return v.size;
+  if (v instanceof ArrayBuffer) return v.byteLength;
+  if (ArrayBuffer.isView(v)) return v.byteLength;
+  if (v instanceof Date) return 8;
+  if (seen.has(v)) return 0;
+  seen.add(v);
+  let s = 0;
+  if (v instanceof Map) { for (const [a, b] of v) s += approxSize(a, seen) + approxSize(b, seen); return s; }
+  if (v instanceof Set) { for (const a of v) s += approxSize(a, seen); return s; }
+  if (Array.isArray(v)) { for (const a of v) s += approxSize(a, seen); return s; }
+  for (const k in v) s += k.length * 2 + approxSize(v[k], seen);
+  return s;
+}
+
+function measureDb(name) {
+  return new Promise(resolve => {
+    let req;
+    try { req = indexedDB.open(name); } catch (e) { return resolve({ error: e.message }); }
+    // Darf nie auslösen, da wir nur Datenbanken öffnen, die laut databases() existieren.
+    // Falls doch: Anlegen abbrechen, damit kein leeres Gerüst entsteht.
+    req.onupgradeneeded = () => { try { req.transaction.abort(); } catch (e) {} };
+    req.onblocked = () => resolve({ error: 'blockiert' });
+    req.onerror = () => resolve({ error: (req.error && req.error.message) || 'Fehler beim Öffnen' });
+    req.onsuccess = () => {
+      const db = req.result;
+      // Will ein Tool die Datenbank upgraden, sofort freigeben.
+      db.onversionchange = () => db.close();
+      const stores = Array.from(db.objectStoreNames);
+      if (!stores.length) { db.close(); return resolve({ bytes: 0, count: 0 }); }
+      let bytes = 0, count = 0;
+      let tx;
+      try { tx = db.transaction(stores, 'readonly'); }
+      catch (e) { db.close(); return resolve({ error: e.message }); }
+      for (const st of stores) {
+        const cur = tx.objectStore(st).openCursor();
+        cur.onsuccess = () => {
+          const c = cur.result;
+          if (!c) return;
+          count++;
+          bytes += approxSize(c.key, new WeakSet()) + approxSize(c.value, new WeakSet());
+          c.continue();
+        };
+      }
+      tx.oncomplete = () => { db.close(); resolve({ bytes, count, stores: stores.length }); };
+      tx.onerror = tx.onabort = () => { db.close(); resolve({ error: (tx.error && tx.error.message) || 'Lesefehler', bytes, count }); };
+    };
+  });
+}
+
+async function listDatabases() {
+  if (!window.indexedDB) return { error: 'IndexedDB nicht verfügbar' };
+  if (typeof indexedDB.databases !== 'function') return { error: 'Dieser Browser kann die Datenbanken nicht auflisten' };
+  try { return { list: await indexedDB.databases() }; }
+  catch (e) { return { error: e.message || String(e) }; }
+}
+
+// ---------- Gesamt / Persistenz ----------
+async function readEstimate() {
+  if (!navigator.storage || !navigator.storage.estimate) return null;
+  try { return await navigator.storage.estimate(); } catch (e) { return null; }
+}
+async function readPersisted() {
+  if (!navigator.storage || !navigator.storage.persisted) return null;
+  try { return await navigator.storage.persisted(); } catch (e) { return null; }
+}
+
+function setBar(el, ratio) {
+  el.classList.remove('warn', 'bad');
+  if (ratio > 0.9) el.classList.add('bad'); else if (ratio > 0.7) el.classList.add('warn');
+  el.querySelector('span').style.width = Math.min(100, ratio * 100).toFixed(1) + '%';
+}
+
+async function measure() {
+  $('#msgs').innerHTML = '';
+  $('#btnRefresh').disabled = true;
+  try {
+    // localStorage
+    const ls = readLocalStorage();
+    if (ls.error) {
+      $('#lsTotal').textContent = 'nicht lesbar';
+      msg('localStorage konnte nicht gelesen werden: ' + esc(ls.error), 'bad');
+    } else {
+      $('#lsTotal').textContent = fmt(ls.total) + ' von ca. 5 MB';
+      const r = ls.total / LS_LIMIT;
+      setBar($('#lsBar'), r);
+      if (r > 0.9) msg('<b>localStorage fast voll.</b> Andere Tools können dann nicht mehr speichern („quota exceeded“). Größten Verbraucher unten prüfen.', 'bad');
+      else if (r > 0.7) msg('localStorage ist zu über 70 % belegt.', 'warn');
+    }
+
+    // Gesamt
+    const est = await readEstimate();
+    if (est && est.usage != null) {
+      $('#usage').textContent = fmt(est.usage);
+      $('#quota').textContent = est.quota ? 'von ' + fmt(est.quota) + ' erlaubt' : '';
+    } else {
+      $('#usage').textContent = 'unbekannt';
+    }
+
+    const p = await readPersisted();
+    $('#persist').textContent = p === true ? '✓ aktiv' : p === false ? 'nicht aktiv' : 'unbekannt';
+    $('#persist').style.color = p === true ? 'var(--ok)' : p === false ? 'var(--warn)' : '';
+    $('#btnPersist').hidden = p === true || !(navigator.storage && navigator.storage.persist);
+
+    // Datenbanken
+    const dbl = await listDatabases();
+    const existing = new Set((dbl.list || []).map(d => d.name));
+    if (dbl.error) msg('Datenbank-Größen nicht messbar: ' + esc(dbl.error) + '.', 'warn');
+
+    const rows = [];
+    const lsShare = id => ls.byTool && ls.byTool[id];
+    for (const t of TOOLS) {
+      let dbBytes = null, count = null, err = null, found = false;
+      for (const name of t.dbs) {
+        if (!existing.has(name)) continue;
+        found = true;
+        const m = await measureDb(name);
+        if (m.error) err = m.error;
+        dbBytes = (dbBytes || 0) + (m.bytes || 0);
+        count = (count || 0) + (m.count || 0);
+      }
+      const l = lsShare(t.id);
+      rows.push({ t, dbBytes, count, err, found, ls: l });
+      const total = (dbBytes || 0) + (l ? l.bytes : 0);
+      const chip = $('#size-' + t.id);
+      if (chip) chip.textContent = found || l ? fmt(total) : 'noch leer';
+    }
+
+    const others = (dbl.list || []).filter(d => d.name && !TOOLS.some(t => t.dbs.includes(d.name)));
+
+    $('#storeRows').innerHTML = rows.map(r => {
+      const lsR = r.ls ? r.ls.bytes / LS_LIMIT : 0;
+      const lsCls = lsR > 0.1 ? 'bad' : lsR > 0.05 ? 'warn' : '';
+      return `<tr>
+        <td>${r.t.ico} ${esc(r.t.name)}${r.err ? `<div class="small" style="color:var(--bad)">${esc(r.err)}</div>` : ''}</td>
+        <td class="num">${r.found ? fmt(r.dbBytes) : dbl.error ? '?' : '<span class="muted">keine</span>'}</td>
+        <td class="num">${r.ls ? fmt(r.ls.bytes) + `<div class="lsbar ${lsCls}"><span style="width:${Math.min(100, lsR * 100 * 10).toFixed(0)}%"></span></div>` : '<span class="muted">–</span>'}</td>
+        <td class="num">${r.count != null ? r.count.toLocaleString('de-DE') : '–'}</td>
+      </tr>`;
+    }).join('')
+      + (ls.unknown && ls.unknown.length ? `<tr><td colspan="4"><details style="margin:0"><summary>Nicht zugeordnete localStorage-Schlüssel (${ls.unknown.length}, ${fmt(ls.unknown.reduce((a, b) => a + b.bytes, 0))})</summary><div class="small muted" style="margin-top:6px">${ls.unknown.sort((a, b) => b.bytes - a.bytes).map(u => `<code>${esc(u.key)}</code> ${fmt(u.bytes)}`).join('<br>')}</div></details></td></tr>` : '')
+      + (others.length ? `<tr><td colspan="4"><details style="margin:0"><summary>Weitere Datenbanken unter dieser Adresse (${others.length})</summary><div class="small muted" style="margin-top:6px">${others.map(d => `<code>${esc(d.name)}</code>`).join(' ')}</div></details></td></tr>` : '');
+
+    // Hinweis auf große localStorage-Nutzer (Regel: deutlich unter 500 KB)
+    for (const t of TOOLS) {
+      const l = lsShare(t.id);
+      if (l && l.bytes > 500 * 1024) msg(`<b>${esc(t.name)}</b> belegt ${fmt(l.bytes)} im localStorage. Die Regel ist deutlich unter 500 KB, die Daten gehören in die IndexedDB.`, 'warn');
+    }
+  } catch (e) {
+    msg('Messung fehlgeschlagen: ' + esc(e.message || e), 'bad');
+  } finally {
+    $('#btnRefresh').disabled = false;
+  }
+}
+
+$('#btnPersist').addEventListener('click', async () => {
+  try {
+    const ok = await navigator.storage.persist();
+    msg(ok ? 'Dauerhafter Speicher ist jetzt aktiv. Der Browser löscht die Daten nicht mehr von sich aus.'
+           : 'Der Browser hat abgelehnt. In Safari klappt es meist erst in der Home-Bildschirm-App, in Chrome nach häufiger Nutzung oder als Lesezeichen.',
+        ok ? 'ok' : 'warn');
+  } catch (e) { msg('Anfrage fehlgeschlagen: ' + esc(e.message || e), 'bad'); }
+  measure();
+});
+$('#btnRefresh').addEventListener('click', measure);
+
+renderMode();
+renderTools();
+measure();
+</script>
+</body>
+</html>
