@@ -207,7 +207,7 @@ const TOOLS = [
     dbs: ['bp-organizer'], ls: ['bp-organizer', 'bp_batch_data'], tags: ['sync', 'script'], toolsync: true },
   { id: 'Image-Ranker', name: 'Image Ranker', ico: '🏆', path: '/Image-Ranker/',
     desc: 'Bilder per Vergleich ranken',
-    dbs: ['ImageRankerDB', 'ranker-sync'], ls: ['ranker.'], tags: ['sync'], toolsync: true },
+    dbs: ['ImageRankerDB', 'ranker-sync'], ls: ['ranker.'], tags: ['sync'], toolsync: true, syncId: 'image-ranker' },
   { id: 'nh-favoriten', name: 'Favoriten-Archiv', ico: '📚', path: '/nh-favoriten/',
     desc: 'nhentai-Favoriten archivieren und synchronisieren',
     dbs: ['nh-fav-archiv'], ls: ['nhfav-'], tags: ['sync', 'script'], toolsync: true },
@@ -548,7 +548,7 @@ async function renderSyncStatus() {
   const s = await readSyncDb();
   const fmtT = t => t ? new Date(t).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : 'noch nie';
   $('#syncRows').innerHTML = TOOLS.filter(t => t.toolsync).map(t =>
-    `<tr><td>${t.ico} ${esc(t.name)}</td><td>${s ? fmtT(s.meta[t.id] && s.meta[t.id].lastSync) : '?'}</td></tr>`).join('')
+    `<tr><td>${t.ico} ${esc(t.name)}</td><td>${s ? fmtT(s.meta[t.syncId || t.id] && s.meta[t.syncId || t.id].lastSync) : '?'}</td></tr>`).join('')
     + `<tr><td colspan="2" class="small muted">Kartenbinder und Videothek haben ihren eigenen Sync (Einstellungen im jeweiligen Tool).</td></tr>`;
   const list = s ? s.safety.sort((a, b) => String(b.at).localeCompare(String(a.at))) : [];
   $('#safetyList').innerHTML = list.length
