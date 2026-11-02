@@ -20,6 +20,7 @@ Gemeinsamer Abgleich für die Tools mit dem privaten Repo `TheVizce/tool-daten`.
 | Pokémon-Boxen | `pokemon-home.json` |
 | Babe Organizer | Ordner `b-organizer/` (main.json + 32 Teildateien) – eigene Bilder bleiben lokal |
 | Favoriten-Archiv | Ordner `nh-favoriten/` (main.json + 32 Teildateien) – Cover und API-Key bleiben lokal |
+| Image Ranker | Ordner `image-ranker/` (main.json + 64 Teildateien); Bilddateien in Paketen (ca. 10 MB) im privaten Repo `ranker-bilder` – nicht am Handy |
 
 Kartenbinder und Videothek haben ihren eigenen Sync.
 

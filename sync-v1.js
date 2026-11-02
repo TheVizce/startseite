@@ -19,6 +19,10 @@
  *                     geänderte Teile. Die Zahl darf später nicht mehr geändert werden.
  *   stampDelay: ms  – Wartezeit vor dem Erkennen von Änderungen (bei großen Datenmengen höher)
  *   badge: false | { bottom, left }, home: false
+ *   get darf auch ein Promise liefern (z. B. Daten direkt aus der IndexedDB lesen)
+ *   beforeSync: async ({ config, progress }) => {} – läuft vor jedem Abgleich (z. B. Bilder hochladen);
+ *                     wirft er einen Fehler, wird in diesem Durchgang nichts abgeglichen
+ *   onStatus: (status, text) => {}
  *
  * Speicher:
  *   localStorage  "toolsync.config"   – Repo + Token (klein, wird auf der Startseite eingetragen)
@@ -394,7 +398,10 @@
         setStatus('syncing');
         try {
           const meta = await loadMeta();
-          let state = opts.get();
+          if (typeof opts.beforeSync === 'function') {
+            await opts.beforeSync({ config: cfg, progress: t => setStatus('syncing', t) });
+          }
+          let state = await opts.get();
           if (!state) { setStatus(dirty ? 'pending' : 'ok'); return; }
           if (meta.repo !== repoKey(cfg)) { meta.sha = null; meta.fsha = {}; meta.fsig = {}; meta.repo = repoKey(cfg); }
           if (!meta.init) {
@@ -404,7 +411,7 @@
           stamp(meta, state, !meta.init);
 
           for (let attempt = 0; ; attempt++) {
-            state = opts.get();
+            if (attempt > 0) state = await opts.get();
             const L = allEntries(state);
 
             // Welche Dateien müssen bearbeitet werden?
@@ -461,6 +468,8 @@
               const p = plans[i], u = p.unit, r = remotes[todo.indexOf(u)];
               let sha = r.sha;
               if (p.remoteChanged) {
+                // GitHub erlaubt ca. 80 Uploads pro Minute: bei vielen Dateien etwas bremsen
+                if (toWrite.length > 20 && written > 0) await new Promise(r => setTimeout(r, 800));
                 if (toWrite.length > 3) setStatus('syncing', `Speichere ${++written} von ${toWrite.length} Dateien…`);
                 const body = { format: 'toolsync', version: 1, tool: TOOL, part: u.name, updatedAt: new Date().toISOString(), device: deviceName(), data: p.out.data, u: p.out.u, del: p.out.del, fu: p.out.fu };
                 try {
@@ -503,7 +512,8 @@
           try {
             const meta = await loadMeta();
             if (!meta.init) return;             // vor dem ersten Abgleich: das erledigt syncNow
-            if (stamp(meta, opts.get(), false)) await saveMeta(meta);
+            const st = await opts.get();
+            if (st && stamp(meta, st, false)) await saveMeta(meta);
           } catch (e) { console.warn('ToolSync: Änderung nicht vermerkt', e); }
         });
       }, STAMP_WAIT);
@@ -531,6 +541,8 @@
     const COLOR = { off: '#6b7280', ok: '#4cc38a', pending: '#e5b04a', syncing: '#7c9cff', offline: '#9aa1b2', error: '#ef6464' };
     function ensureBadge() {
       if (host || opts.badge === false) return;
+      // eigenständigen ⌂-Knopf (nav-v1.js) ersetzen – das Sync-Feld hat ihn schon
+      if (opts.home !== false) document.querySelectorAll('[data-toolnav]').forEach(n => n.remove());
       host = document.createElement('div');
       host.setAttribute('data-toolsync', TOOL);
       const pos = Object.assign({ bottom: '12px', left: '12px' }, opts.badge || {});
@@ -606,5 +618,5 @@
     };
   }
 
-  window.ToolSync = { version: 1, create, readConfig, CONFIG_KEY: CFG_KEY, DB_NAME };
+  window.ToolSync = { version: 1, create, readConfig, CONFIG_KEY: CFG_KEY, DB_NAME, github: { headers, repoUrl, fileUrl, fail: ghFail, error: syncError, b64enc } };
 })();
