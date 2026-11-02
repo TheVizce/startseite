@@ -416,6 +416,9 @@
       const root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
       root.innerHTML = `<style>
         :host{all:initial}
+        .w{display:flex;gap:6px;align-items:center}
+        .h{font:600 15px/1 system-ui,-apple-system,sans-serif;color:#e8eaf0;background:rgba(26,29,36,.92);border:1px solid #2d3240;border-radius:99px;width:30px;height:28px;display:grid;place-items:center;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.35);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+        .h:hover,.p:hover{border-color:#7c9cff}
         .p{font:600 12px/1 system-ui,-apple-system,sans-serif;color:#e8eaf0;background:rgba(26,29,36,.92);border:1px solid #2d3240;border-radius:99px;padding:7px 10px 7px 8px;display:flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);user-select:none}
         .d{width:8px;height:8px;border-radius:50%;flex:none}
         .t{white-space:nowrap}
@@ -429,7 +432,7 @@
         .row{display:flex;gap:8px;flex-wrap:wrap}
         button,a.btn{font:inherit;color:#e8eaf0;background:#222631;border:1px solid #2d3240;border-radius:8px;padding:6px 10px;cursor:pointer;text-decoration:none}
         button:hover,a.btn:hover{border-color:#7c9cff}
-      </style><div class="pop" hidden></div><div class="p" role="button" tabindex="0"><span class="d"></span><span class="t"></span></div>`;
+      </style><div class="pop" hidden></div><div class="w">${opts.home === false ? '' : '<a class="h" href="/startseite/" title="Zur Startseite" aria-label="Zur Startseite">⌂</a>'}<div class="p" role="button" tabindex="0"><span class="d"></span><span class="t"></span></div></div>`;
       pill = root.querySelector('.p'); pop = root.querySelector('.pop');
       pill.addEventListener('click', togglePop);
       pill.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePop(); } });
