@@ -22,8 +22,9 @@ Gemeinsamer Abgleich für die Tools mit dem privaten Repo `TheVizce/tool-daten`.
 | Favoriten-Archiv | Ordner `nh-favoriten/` (main.json + 32 Teildateien) – Cover und API-Key bleiben lokal |
 | Image Ranker | Ordner `image-ranker/` (main.json + 64 Teildateien); Bilddateien in Paketen (ca. 10 MB) im privaten Repo `ranker-bilder` – nicht am Handy |
 | Kartenbinder | Ordner `kartenbinder/` (main.json + 16 Teildateien); beim ersten Abgleich eines Geräts gilt der Cloud-Stand |
+| Videothek | Ordner `videothek/` (main.json + 16 Teildateien); YouTube-Schlüssel bleibt pro Gerät |
 
-Die Videothek hat ihren eigenen Sync.
+Alle Tools nutzen diesen gemeinsamen Sync.
 
 - **Einrichten:** einmal pro Gerät/Browser auf der Startseite unter „GitHub-Sync“ Repo und Token eintragen (am iPhone auch in der Home-Bildschirm-App). Gespeichert in `localStorage["toolsync.config"]`.
 - **Token:** Fine-grained, nur `tool-daten`, Contents: Read and write.
