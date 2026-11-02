@@ -12,7 +12,16 @@ Adresse: https://thevizce.github.io/startseite/
 Die Seite **liest nur**: Sie schreibt nichts in den localStorage, öffnet nur Datenbanken, die schon existieren, und gibt sie sofort frei, wenn ein Tool sie upgraden will.
 
 ## GitHub-Sync (`sync-v1.js`)
-Gemeinsamer Abgleich für die Tools mit dem privaten Repo `TheVizce/tool-daten`, eine Datei pro Tool (`pokemon-go.json`, `pokemon-home.json`). Angebunden: GO Organizer, Pokémon-Boxen. Kartenbinder und Videothek haben ihren eigenen Sync.
+Gemeinsamer Abgleich für die Tools mit dem privaten Repo `TheVizce/tool-daten`.
+
+| Tool | Ablage im Daten-Repo |
+|---|---|
+| GO Organizer | `pokemon-go.json` |
+| Pokémon-Boxen | `pokemon-home.json` |
+| Babe Organizer | Ordner `b-organizer/` (main.json + 32 Teildateien) – eigene Bilder bleiben lokal |
+| Favoriten-Archiv | Ordner `nh-favoriten/` (main.json + 32 Teildateien) – Cover und API-Key bleiben lokal |
+
+Kartenbinder und Videothek haben ihren eigenen Sync.
 
 - **Einrichten:** einmal pro Gerät/Browser auf der Startseite unter „GitHub-Sync“ Repo und Token eintragen (am iPhone auch in der Home-Bildschirm-App). Gespeichert in `localStorage["toolsync.config"]`.
 - **Token:** Fine-grained, nur `tool-daten`, Contents: Read and write.

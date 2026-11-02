@@ -12,6 +12,14 @@
  *   SYNC && SYNC.start();     // nach dem Laden
  *   SYNC && SYNC.changed();   // nach jedem erfolgreichen lokalen Speichern
  *
+ * Weitere Optionen:
+ *   collections: { entries: { type: 'array', id: '_id' } }  – anderes ID-Feld als "id"
+ *   shards: 32      – große Datenmengen auf einen Ordner verteilen: <tool>/main.json (Objekte, Einzelwerte)
+ *                     und <tool>/s00.json … s31.json (Listeneinträge nach ID). Hochgeladen werden nur
+ *                     geänderte Teile. Die Zahl darf später nicht mehr geändert werden.
+ *   stampDelay: ms  – Wartezeit vor dem Erkennen von Änderungen (bei großen Datenmengen höher)
+ *   badge: false | { bottom, left }, home: false
+ *
  * Speicher:
  *   localStorage  "toolsync.config"   – Repo + Token (klein, wird auf der Startseite eingetragen)
  *   IndexedDB     "toolsync"          – pro Tool: Abgleich-Stand (meta) und Sicherheitskopie (safety)
@@ -113,7 +121,7 @@
     return { Authorization: 'Bearer ' + c.token, Accept: accept || 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
   }
   const repoUrl = c => `${API}/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}`;
-  const fileUrl = (c, file) => repoUrl(c) + '/contents/' + (c.path ? c.path.replace(/^\/|\/$/g, '') + '/' : '').split('/').concat(file).filter(Boolean).map(encodeURIComponent).join('/');
+  const fileUrl = (c, file) => repoUrl(c) + '/contents/' + String(c.path || '').split('/').concat(String(file).split('/')).filter(Boolean).map(encodeURIComponent).join('/');
 
   async function ghFail(r, what) {
     let m = ''; try { m = (await r.json()).message || ''; } catch (e) {}
@@ -146,6 +154,20 @@
     return { sha: j.sha, json };
   }
 
+  /* Inhalt eines Ordners: Dateiname → sha (leer, wenn es den Ordner noch nicht gibt) */
+  async function ghList(c, dir) {
+    const r = await fetch(fileUrl(c, dir) + '?ref=' + encodeURIComponent(c.branch), { headers: headers(c), cache: 'no-store' });
+    if (r.status === 404) {
+      const rr = await fetch(repoUrl(c), { headers: headers(c), cache: 'no-store' });
+      if (!rr.ok) throw syncError(`Daten-Repo ${c.owner}/${c.repo} nicht gefunden, oder der Token hat keinen Zugriff darauf.`, { auth: true });
+      return {};
+    }
+    if (!r.ok) throw await ghFail(r, 'Lesen');
+    const j = await r.json(), out = {};
+    if (Array.isArray(j)) for (const f of j) if (f.type === 'file') out[f.name] = f.sha;
+    return out;
+  }
+
   async function ghWrite(c, file, body, sha, message) {
     const payload = { message, content: b64enc(JSON.stringify(body)), branch: c.branch };
     if (sha) payload.sha = sha;
@@ -159,9 +181,33 @@
   function create(opts) {
     if (!opts || !opts.tool || typeof opts.get !== 'function' || typeof opts.apply !== 'function') throw new Error('ToolSync: tool, get und apply sind nötig');
     const TOOL = String(opts.tool);
-    const FILE = TOOL + '.json';
     const COLLS = Object.assign({}, opts.collections || {});
     const FIELDS = (opts.fields || []).slice();
+    const SHARDS = Math.max(0, opts.shards | 0);
+    const STAMP_WAIT = opts.stampDelay || STAMP_DELAY;
+    const collType = c => (typeof COLLS[c] === 'string' ? COLLS[c] : (COLLS[c] && COLLS[c].type)) || 'array';
+    const collId = c => (COLLS[c] && typeof COLLS[c] === 'object' && COLLS[c].id) || 'id';
+    const CNAMES = Object.keys(COLLS);
+
+    /* Dateien im Daten-Repo: eine Datei, oder ein Ordner mit main.json (Objekte + Einzelwerte) und sNN.json (Listen) */
+    const pad = k => String(k).padStart(2, '0');
+    const UNITS = SHARDS
+      ? [{ name: 'main', file: 'main.json', path: TOOL + '/main.json', main: true }]
+          .concat(Array.from({ length: SHARDS }, (_, k) => ({ name: 's' + pad(k), file: 's' + pad(k) + '.json', path: TOOL + '/s' + pad(k) + '.json', shard: k })))
+      : [{ name: TOOL, file: TOOL + '.json', path: TOOL + '.json', all: true }];
+    const shardCache = new Map();
+    function shardOf(id) {
+      let k = shardCache.get(id);
+      if (k === undefined) {
+        let h = 0x811c9dc5;
+        for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 0x01000193);
+        k = (h >>> 0) % SHARDS; shardCache.set(id, k);
+      }
+      return k;
+    }
+    const unitOf = (c, id) => !SHARDS || collType(c) === 'map' ? UNITS[0] : UNITS[1 + shardOf(id)];
+    const unitColls = u => CNAMES.filter(c => u.all || (u.main ? collType(c) === 'map' : collType(c) === 'array'));
+    const unitFields = u => (u.all || u.main) ? FIELDS : [];
 
     let queue = Promise.resolve();
     const run = fn => (queue = queue.then(fn, fn));
@@ -172,23 +218,26 @@
     /* Einträge eines Bereichs als Map id → Wert */
     function entries(state, coll) {
       const v = state ? state[coll] : null, m = new Map();
-      if (COLLS[coll] === 'map') {
+      if (collType(coll) === 'map') {
         if (v && typeof v === 'object') for (const k of Object.keys(v)) if (v[k] !== undefined) m.set(k, v[k]);
       } else if (Array.isArray(v)) {
+        const key = collId(coll);
         for (const it of v) {
           if (it == null) continue;
-          const id = (typeof it === 'object' && it.id != null && it.id !== '') ? String(it.id) : 'h:' + hash(it);
+          const id = (typeof it === 'object' && it[key] != null && it[key] !== '') ? String(it[key]) : 'h:' + hash(it);
           if (!m.has(id)) m.set(id, it);
         }
       }
       return m;
     }
-    const native = (coll, m) => COLLS[coll] === 'map' ? Object.fromEntries(m) : Array.from(m.values());
+    const native = (coll, m) => collType(coll) === 'map' ? Object.fromEntries(m) : Array.from(m.values());
+    function allEntries(state) { const L = {}; for (const c of CNAMES) L[c] = entries(state, c); return L; }
 
-    function blankMeta() { return { v: 1, sha: null, repo: null, init: false, lastSync: 0, h: {}, u: {}, del: {}, fh: {}, fu: {} }; }
+    function blankMeta() { return { v: 1, sha: null, repo: null, init: false, lastSync: 0, h: {}, u: {}, del: {}, fh: {}, fu: {}, fsha: {}, fsig: {} }; }
     async function loadMeta() {
       const m = Object.assign(blankMeta(), (await dbGet('meta', TOOL)) || {});
-      for (const c of Object.keys(COLLS)) { m.h[c] = m.h[c] || {}; m.u[c] = m.u[c] || {}; m.del[c] = m.del[c] || {}; }
+      for (const c of CNAMES) { m.h[c] = m.h[c] || {}; m.u[c] = m.u[c] || {}; m.del[c] = m.del[c] || {}; }
+      m.fsha = m.fsha || {}; m.fsig = m.fsig || {};
       return m;
     }
     const saveMeta = m => dbPut('meta', TOOL, m);
@@ -197,7 +246,7 @@
     function stamp(meta, state, initial) {
       const now = Date.now();
       let n = 0;
-      for (const c of Object.keys(COLLS)) {
+      for (const c of CNAMES) {
         const cur = entries(state, c), H = meta.h[c], U = meta.u[c], D = meta.del[c];
         for (const [id, val] of cur) {
           const h = hash(val);
@@ -215,27 +264,39 @@
       return n;
     }
 
-    /* Lokal + entfernt zusammenführen. Pro Eintrag gewinnt die jüngste Änderung (auch eine Löschung).
+    /* Fingerabdruck des Abgleich-Stands einer Datei: ändert er sich, muss sie hochgeladen werden */
+    function sigOf(meta, u) {
+      const o = { u: {}, d: {}, f: {} };
+      for (const c of unitColls(u)) {
+        const U = {}, D = {};
+        for (const id of Object.keys(meta.u[c])) if (unitOf(c, id) === u) U[id] = meta.u[c][id];
+        for (const id of Object.keys(meta.del[c])) if (unitOf(c, id) === u) D[id] = meta.del[c][id];
+        o.u[c] = U; o.d[c] = D;
+      }
+      for (const f of unitFields(u)) o.f[f] = [meta.fu[f], meta.fh[f]];
+      return hash(o);
+    }
+
+    /* Eine Datei zusammenführen. Pro Eintrag gewinnt die jüngste Änderung (auch eine Löschung).
        Bei Gleichstand gewinnt der entfernte Stand. */
-    function merge(meta, state, remote, keep) {
-      const R = remote && remote.json ? remote.json : null;
+    function mergeUnit(meta, L, state, R, keep, u) {
       const rData = (R && R.data) || {}, rU = (R && R.u) || {}, rDel = (R && R.del) || {}, rFu = (R && R.fu) || {};
       const out = { data: {}, u: {}, del: {}, fu: {} };
-      const res = { localChanged: false, deletions: [], existing: 0 };
+      const res = { unit: u, localChanged: false, deletions: [], existing: 0 };
       const cutoff = Date.now() - TOMB_MAX_AGE;
+      const mine = (c, id) => unitOf(c, id) === u;
 
-      for (const c of Object.keys(COLLS)) {
-        const L = entries(state, c), Rm = entries(rData, c);
+      for (const c of unitColls(u)) {
+        const Rm = entries(rData, c);
         const lu = meta.u[c], ld = meta.del[c], ru = rU[c] || {}, rd = rDel[c] || {};
-        const ids = [];
-        const seen = new Set();
-        const add = id => { if (!seen.has(id)) { seen.add(id); ids.push(id); } };
-        L.forEach((_, id) => add(id)); Rm.forEach((_, id) => add(id));
+        const ids = [], seen = new Set();
+        const add = id => { if (!seen.has(id) && mine(c, id)) { seen.add(id); ids.push(id); } };
+        L[c].forEach((_, id) => add(id)); Rm.forEach((_, id) => add(id));
         Object.keys(ld).forEach(add); Object.keys(rd).forEach(add);
 
         const M = new Map(), U = {}, D = {};
         for (const id of ids) {
-          const hasL = L.has(id), hasR = Rm.has(id);
+          const hasL = L[c].has(id), hasR = Rm.has(id);
           if (hasL || hasR) res.existing++;
           const tL = hasL ? (lu[id] != null ? lu[id] : 0) : -1;
           const tR = hasR ? (ru[id] != null ? ru[id] : 0) : -1;
@@ -249,14 +310,14 @@
             if (hasL) res.localChanged = true;
           } else if (tVal >= 0) {
             const fromRemote = hasR && (tR >= tL);
-            const val = fromRemote ? Rm.get(id) : L.get(id);
-            if (fromRemote && (!hasL || hash(L.get(id)) !== hash(val))) res.localChanged = true;
+            const val = fromRemote ? Rm.get(id) : L[c].get(id);
+            if (fromRemote && (!hasL || hash(L[c].get(id)) !== hash(val))) res.localChanged = true;
             M.set(id, val); U[id] = fromRemote ? tR : tL;
           }
         }
         out.data[c] = native(c, M); out.u[c] = U; out.del[c] = D;
       }
-      for (const f of FIELDS) {
+      for (const f of unitFields(u)) {
         const lv = state ? state[f] : undefined, rv = rData[f];
         const tL = lv !== undefined ? (meta.fu[f] != null ? meta.fu[f] : 0) : -1;
         const tR = rv !== undefined ? (rFu[f] != null ? rFu[f] : 0) : -1;
@@ -271,14 +332,43 @@
       return res;
     }
 
-    /* Nach erfolgreichem Übernehmen: Abgleich-Stand auf das Ergebnis setzen */
-    function adopt(meta, out) {
-      for (const c of Object.keys(COLLS)) {
-        const m = entries(out.data, c), H = {};
-        m.forEach((v, id) => { H[id] = hash(v); });
-        meta.h[c] = H; meta.u[c] = Object.assign({}, out.u[c]); meta.del[c] = Object.assign({}, out.del[c]);
+    /* Gesamtstand bauen: bearbeitete Dateien aus dem Ergebnis, alles andere unverändert lokal */
+    function combine(L, state, plans) {
+      const byUnit = new Map(plans.map(p => [p.unit, p]));
+      const data = {};
+      for (const c of CNAMES) {
+        if (collType(c) === 'map') {
+          const p = byUnit.get(UNITS[0]);
+          data[c] = p ? p.out.data[c] : native(c, L[c]);
+          continue;
+        }
+        const pm = new Map();
+        for (const p of plans) if (unitColls(p.unit).includes(c)) pm.set(p.unit, entries(p.out.data, c));
+        const M = new Map();
+        for (const [id, v] of L[c]) {
+          const u = unitOf(c, id), got = pm.get(u);
+          if (!got) M.set(id, v); else if (got.has(id)) M.set(id, got.get(id));
+        }
+        for (const got of pm.values()) for (const [id, v] of got) if (!M.has(id)) M.set(id, v);
+        data[c] = native(c, M);
       }
+      const pMain = byUnit.get(UNITS[0]);
       for (const f of FIELDS) {
+        if (pMain) { if (f in pMain.out.data) data[f] = pMain.out.data[f]; }
+        else if (state && state[f] !== undefined) data[f] = state[f];
+      }
+      return data;
+    }
+
+    /* Nach erfolgreichem Übernehmen: Abgleich-Stand einer Datei auf das Ergebnis setzen */
+    function adoptUnit(meta, p) {
+      const u = p.unit, out = p.out;
+      for (const c of unitColls(u)) {
+        for (const T of [meta.h[c], meta.u[c], meta.del[c]]) for (const id of Object.keys(T)) if (unitOf(c, id) === u) delete T[id];
+        entries(out.data, c).forEach((v, id) => { meta.h[c][id] = hash(v); });
+        Object.assign(meta.u[c], out.u[c]); Object.assign(meta.del[c], out.del[c]);
+      }
+      for (const f of unitFields(u)) {
         if (f in out.data) { meta.fh[f] = out.data[f] === undefined ? null : hash(out.data[f]); meta.fu[f] = out.fu[f]; }
       }
     }
@@ -286,6 +376,12 @@
     async function safetyCopy(reason, state) {
       try { await dbPut('safety', TOOL + (reason === 'erster Abgleich' ? '' : ':' + Date.now()), { tool: TOOL, reason, at: new Date().toISOString(), data: clone(state) }); }
       catch (e) { console.warn('ToolSync: Sicherheitskopie fehlgeschlagen', e); }
+    }
+
+    async function pool(items, n, fn) {
+      const out = new Array(items.length); let i = 0;
+      await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => { while (i < items.length) { const k = i++; out[k] = await fn(items[k], k); } }));
+      return out;
     }
 
     /* ---------- Abgleich ---------- */
@@ -298,9 +394,9 @@
         setStatus('syncing');
         try {
           const meta = await loadMeta();
-          const state = opts.get();
+          let state = opts.get();
           if (!state) { setStatus(dirty ? 'pending' : 'ok'); return; }
-          if (meta.repo !== repoKey(cfg)) { meta.sha = null; meta.repo = repoKey(cfg); }
+          if (meta.repo !== repoKey(cfg)) { meta.sha = null; meta.fsha = {}; meta.fsig = {}; meta.repo = repoKey(cfg); }
           if (!meta.init) {
             const existing = await dbGet('safety', TOOL).catch(() => null);
             if (!existing) await safetyCopy('erster Abgleich', state);
@@ -308,50 +404,79 @@
           stamp(meta, state, !meta.init);
 
           for (let attempt = 0; ; attempt++) {
-            const remote = await ghRead(cfg, FILE);
-            if (remote.json && (remote.json.format !== 'toolsync' || remote.json.tool !== TOOL)) {
-              throw syncError(`${FILE} im Daten-Repo gehört nicht zu diesem Tool. Es wird nichts überschrieben.`);
+            state = opts.get();
+            const L = allEntries(state);
+
+            // Welche Dateien müssen bearbeitet werden?
+            let todo, listing = null;
+            if (!SHARDS) todo = UNITS.slice();
+            else {
+              listing = await ghList(cfg, TOOL);
+              todo = UNITS.filter(u => !meta.init || (listing[u.file] || null) !== (meta.fsha[u.name] || null) || sigOf(meta, u) !== meta.fsig[u.name]);
             }
-            let plan = merge(meta, opts.get(), remote);
+            if (!todo.length) { meta.lastSync = Date.now(); await saveMeta(meta); break; }
+
+            // Entfernte Stände holen (bei aufgeteilten Tools nur die geänderten Dateien)
+            let got = 0;
+            const remotes = await pool(todo, 4, async u => {
+              const r = (listing && !listing[u.file]) ? { sha: null, json: null } : await ghRead(cfg, u.path);
+              if (r.json && (r.json.format !== 'toolsync' || r.json.tool !== TOOL)) throw syncError(`${u.path} im Daten-Repo gehört nicht zu diesem Tool. Es wird nichts überschrieben.`);
+              if (todo.length > 3) setStatus('syncing', `Lade ${++got} von ${todo.length} Dateien…`);
+              return r;
+            });
+            let plans = todo.map((u, i) => mergeUnit(meta, L, state, remotes[i].json, null, u));
 
             // Schutz vor versehentlichem Massenlöschen
-            const n = plan.deletions.length;
-            if (n >= MASS_DELETE_MIN && n > plan.existing * MASS_DELETE_SHARE) {
+            const dels = [].concat(...plans.map(p => p.deletions));
+            const existing = plans.reduce((a, p) => a + p.existing, 0);
+            if (dels.length >= MASS_DELETE_MIN && dels.length > existing * MASS_DELETE_SHARE) {
               const ok = window.confirm(
-                `Sync (${TOOL}): ${n} von ${plan.existing} Einträgen würden gelöscht – auf allen Geräten.\n\n` +
+                `Sync (${TOOL}): ${dels.length} von ${existing} Einträgen würden gelöscht – auf allen Geräten.\n\n` +
                 `OK = wirklich löschen\nAbbrechen = Einträge behalten bzw. wiederherstellen`);
               if (ok) {
-                await safetyCopy('vor Massenlöschung', opts.get());
+                await safetyCopy('vor Massenlöschung', state);
               } else {
-                const keep = new Set(plan.deletions.map(d => d.c + '\u0000' + d.id));
+                const keep = new Set(dels.map(d => d.c + '\u0000' + d.id));
                 const now = Date.now();
-                for (const d of plan.deletions) { delete meta.del[d.c][d.id]; if (d.local) meta.u[d.c][d.id] = now; }
-                plan = merge(meta, opts.get(), remote, keep);
+                for (const d of dels) { delete meta.del[d.c][d.id]; if (d.local) meta.u[d.c][d.id] = now; }
+                plans = todo.map((u, i) => mergeUnit(meta, L, state, remotes[i].json, keep, u));
               }
             }
 
-            if (plan.localChanged) {
+            if (plans.some(p => p.localChanged)) {
               applying = true;
               let ok;
-              try { ok = await opts.apply(clone(plan.out.data)); }
+              try { ok = await opts.apply(clone(combine(L, state, plans))); }
               finally { applying = false; }
               if (ok === false) throw syncError('Die Daten aus der Cloud konnten lokal nicht gespeichert werden. Es wird nichts hochgeladen.');
             }
-            adopt(meta, plan.out);
+            for (const p of plans) adoptUnit(meta, p);
             meta.init = true;
             await saveMeta(meta);
 
-            if (plan.remoteChanged) {
-              const body = { format: 'toolsync', version: 1, tool: TOOL, updatedAt: new Date().toISOString(), device: deviceName(), data: plan.out.data, u: plan.out.u, del: plan.out.del, fu: plan.out.fu };
-              try {
-                meta.sha = await ghWrite(cfg, FILE, body, remote.sha, `${TOOL}: Abgleich von ${deviceName()}`);
-              } catch (e) {
-                if (e.conflict && attempt < 4) { await new Promise(r => setTimeout(r, 400 + attempt * 600)); continue; }
-                if (e.conflict) throw syncError('Ein anderes Gerät speichert gerade. Bitte gleich noch einmal versuchen.', { retry: true });
-                throw e;
+            // Geänderte Dateien hochladen
+            const toWrite = plans.filter(p => p.remoteChanged);
+            let conflict = false, written = 0;
+            for (let i = 0; i < plans.length; i++) {
+              const p = plans[i], u = p.unit, r = remotes[todo.indexOf(u)];
+              let sha = r.sha;
+              if (p.remoteChanged) {
+                if (toWrite.length > 3) setStatus('syncing', `Speichere ${++written} von ${toWrite.length} Dateien…`);
+                const body = { format: 'toolsync', version: 1, tool: TOOL, part: u.name, updatedAt: new Date().toISOString(), device: deviceName(), data: p.out.data, u: p.out.u, del: p.out.del, fu: p.out.fu };
+                try {
+                  sha = await ghWrite(cfg, u.path, body, r.sha, `${TOOL}${SHARDS ? '/' + u.name : ''}: Abgleich von ${deviceName()}`);
+                } catch (e) {
+                  if (e.conflict) { conflict = true; break; }
+                  throw e;
+                }
               }
-            } else {
-              meta.sha = remote.sha;
+              if (SHARDS) { meta.fsha[u.name] = sha; meta.fsig[u.name] = sigOf(meta, u); } else meta.sha = sha;
+              if (SHARDS && p.remoteChanged) await saveMeta(meta);
+            }
+            if (conflict) {
+              await saveMeta(meta);
+              if (attempt < 4) { await new Promise(r => setTimeout(r, 400 + attempt * 600)); continue; }
+              throw syncError('Ein anderes Gerät speichert gerade. Bitte gleich noch einmal versuchen.', { retry: true });
             }
             meta.lastSync = Date.now();
             await saveMeta(meta);
@@ -371,18 +496,17 @@
     function changed() {
       if (applying || !readConfig()) return;
       dirty = true;
-      if (status !== 'error') setStatus('pending');
+      if (status !== 'error' && status !== 'syncing') setStatus('pending');
       clearTimeout(stampTimer);
       stampTimer = setTimeout(() => {
         run(async () => {
           try {
             const meta = await loadMeta();
             if (!meta.init) return;             // vor dem ersten Abgleich: das erledigt syncNow
-            stamp(meta, opts.get(), false);
-            await saveMeta(meta);
+            if (stamp(meta, opts.get(), false)) await saveMeta(meta);
           } catch (e) { console.warn('ToolSync: Änderung nicht vermerkt', e); }
         });
-      }, STAMP_DELAY);
+      }, STAMP_WAIT);
       clearTimeout(pushTimer);
       pushTimer = setTimeout(syncNow, PUSH_DELAY);
     }
@@ -397,9 +521,7 @@
       });
       window.addEventListener('online', () => { if (readConfig()) syncNow(); });
       window.addEventListener('storage', e => { if (e.key === CFG_KEY) syncNow(); });
-      window.addEventListener('beforeunload', e => {
-        if (dirty && readConfig()) { syncNow(); }
-      });
+      window.addEventListener('pagehide', () => { if (dirty && readConfig()) syncNow(); });
       return syncNow();
     }
 
@@ -454,7 +576,7 @@
         return;
       }
       pop.innerHTML = `<b>${esc(LABEL[status] || status)}</b>
-        <div class="m">${statusText ? `<span class="${status === 'error' ? 'err' : ''}">${esc(statusText)}</span><br>` : ''}Letzter Abgleich: ${fmtTime(lastSync)}<br>Datei: ${esc(cfg.owner + '/' + cfg.repo + '/' + FILE)}</div>
+        <div class="m">${statusText ? `<span class="${status === 'error' ? 'err' : ''}">${esc(statusText)}</span><br>` : ''}Letzter Abgleich: ${fmtTime(lastSync)}<br>Datei: ${esc(cfg.owner + '/' + cfg.repo + '/' + (SHARDS ? TOOL + '/ (' + UNITS.length + ' Dateien)' : TOOL + '.json'))}</div>
         <div class="row"><button data-a="now">Jetzt abgleichen</button><a class="btn" href="/startseite/#sync">Einstellungen</a></div>`;
       pop.querySelector('[data-a="now"]').onclick = () => { syncNow(); };
     }
