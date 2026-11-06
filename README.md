@@ -23,6 +23,7 @@ Gemeinsamer Abgleich für die Tools mit dem privaten Repo `TheVizce/tool-daten`.
 | Image Ranker | Ordner `image-ranker/` (main.json + 64 Teildateien); Bilddateien in Paketen (ca. 10 MB) im privaten Repo `ranker-bilder` – nicht am Handy |
 | Kartenbinder | Ordner `kartenbinder/` (main.json + 16 Teildateien); beim ersten Abgleich eines Geräts gilt der Cloud-Stand |
 | Videothek | Ordner `videothek/` (main.json + 16 Teildateien); YouTube-Schlüssel bleibt pro Gerät |
+| FH6 Garage | `fh6-garage.json` (Garage-Einträge, Promo-Häkchen); Fahrzeugliste kommt aus dem Repo |
 
 Alle Tools nutzen diesen gemeinsamen Sync.
 
