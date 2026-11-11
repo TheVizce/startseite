@@ -5,11 +5,14 @@
 Adresse: https://thevizce.github.io/startseite/
 
 ## Was die Seite zeigt
-- Kacheln zu allen Tools, mit Hinweis „nur lokal“, „GitHub-Sync“ oder „Browserskript“ und der belegten Größe.
-- **Speicher:** Belegung gesamt, localStorage (gemeinsam, ca. 5 MB) mit Warnung ab 70 %, Größe pro Tool (IndexedDB geschätzt + localStorage nach Präfix), nicht zugeordnete Schlüssel und weitere Datenbanken.
-- Ob „dauerhafter Speicher“ (`navigator.storage.persist()`) aktiv ist, mit Knopf zum Anfragen.
+- **Startansicht:** Kacheln in Gruppen (Pokémon, Medien & Spiele, Sammlungen) mit Anzahl der Einträge und Zeit des letzten Abgleichs auf diesem Gerät. Die Zahlen kommen aus dem Abgleich-Stand (`toolsync`), die Datenbanken der Tools werden dafür nicht durchlaufen.
+- **Statuszeile:** „Alles in Ordnung“ oder Hinweise (Sync nicht eingerichtet, localStorage fast voll, Tool über 2 Wochen nicht abgeglichen, dauerhafter Speicher nicht aktiv).
+- **Diskret:** blendet die Gruppe „Sammlungen“ aus; gemerkt pro Gerät in `localStorage["startseite.diskret"]`.
+- **Verwaltung** (`#verwaltung`, `#speicher`, `#sync`): Speicher pro Tool (IndexedDB geschätzt + localStorage nach Präfix), dauerhafter Speicher, GitHub-Sync-Einstellungen, letzter Abgleich, Sicherheitskopien, iPhone-Hinweise. Die Messung läuft erst, wenn die Verwaltung geöffnet wird.
 
-Die Daten der Tools werden **nur gelesen**: Die Seite öffnet nur Datenbanken, die schon existieren, und gibt sie sofort frei, wenn ein Tool sie upgraden will. Schreiben tut sie nur ihre eigenen Sync-Einstellungen (`toolsync.config`).
+Die Daten der Tools werden **nur gelesen**: Die Seite öffnet nur Datenbanken, die schon existieren, und gibt sie sofort frei, wenn ein Tool sie upgraden will. Schreiben tut sie nur `toolsync.config` und `startseite.diskret`.
+
+Neues Tool: in `TOOLS` auch `group`, `color` und `count` (Sammlungen aus dem Sync mit Beschriftung) angeben.
 
 ## GitHub-Sync (`sync-v1.js`)
 Gemeinsamer Abgleich für die Tools mit dem privaten Repo `TheVizce/tool-daten`.
@@ -38,7 +41,7 @@ Alle Tools nutzen diesen gemeinsamen Sync.
 Tool anbinden: `<script src="/startseite/sync-v1.js"></script>` einbinden, dann `ToolSync.create({ tool, collections, fields, get, apply })`, nach dem Laden `start()` und nach jedem erfolgreichen Speichern `changed()` aufrufen (Details oben in `sync-v1.js`). Bei inkompatiblen Änderungen eine neue Datei `sync-v2.js` anlegen statt v1 zu ändern.
 
 ## Neues Tool eintragen
-In `index.html` oben in der Liste `TOOLS` einen Eintrag ergänzen: Pfad, Name, Emoji, Datenbankname(n) und localStorage-Präfix(e). Tag `sync` für Tools mit GitHub-Sync, `script` für Tools mit Tampermonkey-Skript.
+In `index.html` oben in der Liste `TOOLS` einen Eintrag ergänzen: Pfad, Name, Emoji, Gruppe, Farbe, Zähler (`count`), Datenbankname(n) und localStorage-Präfix(e). Tag `sync` für Tools mit GitHub-Sync, `script` für Tools mit Tampermonkey-Skript.
 
 ## iPhone
 Seite in Safari öffnen → Teilen → „Zum Home-Bildschirm“. Tools aus der Startseite heraus öffnen, dann bleiben sie im selben App-Fenster. Die App hat eigenen Speicher, getrennt von Safari, deshalb Daten einmal per Backup umziehen. Tools mit Browserskript in Safari nutzen.

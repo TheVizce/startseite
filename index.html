@@ -21,44 +21,76 @@
     --radius: 14px;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; background: var(--bg); color: var(--text); }
   body {
     font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
              max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   }
-  main { max-width: 980px; margin: 0 auto; }
-  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 4px 0 18px; }
-  h1 { font-size: 24px; margin: 0; }
+  main { max-width: 1040px; margin: 0 auto; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 14px; }
+  h1 { font-size: 26px; margin: 0; letter-spacing: -.01em; }
   h2 { font-size: 17px; margin: 28px 0 10px; }
   .muted { color: var(--muted); }
   .small { font-size: 13px; }
-  .mode { font-size: 13px; color: var(--muted); }
+  .mode { font-size: 12.5px; color: var(--muted); display: block; margin-top: 2px; }
+  .hbtns { display: flex; gap: 8px; flex: none; }
+  .hbtn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+  .hbtn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  @media (max-width: 560px) { .status .go { display: none; } .status { font-size: 13.5px; } .hbtn .lbl { display: none; } .hbtn { padding: 7px 10px; } h1 { font-size: 22px; } }
 
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  /* Statuszeile */
+  .status { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin-bottom: 18px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); font-size: 14px; }
+  .status .items { display: flex; flex-wrap: wrap; gap: 4px 14px; flex: 1; min-width: 0; }
+  .status a { color: inherit; }
+  .status.warn { border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+  .status.bad { border-color: color-mix(in srgb, var(--bad) 55%, var(--line)); }
+  .status .go { color: var(--accent); text-decoration: none; white-space: nowrap; font-size: 13.5px; }
+
+  /* Gruppen und Kacheln */
+  .group { margin-bottom: 22px; }
+  .ghead { display: flex; align-items: baseline; gap: 10px; margin: 0 2px 10px; }
+  .ghead h2 { margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
   .tool {
-    display: flex; flex-direction: column; gap: 6px; padding: 14px; min-height: 132px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-    color: inherit; text-decoration: none; transition: border-color .15s, transform .15s;
+    --c: var(--accent);
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column; gap: 8px; padding: 16px; min-height: 150px;
+    background: linear-gradient(150deg, color-mix(in srgb, var(--c) 10%, var(--panel)) 0%, var(--panel) 55%);
+    border: 1px solid var(--line); border-radius: var(--radius);
+    color: inherit; text-decoration: none; transition: border-color .15s, transform .15s, box-shadow .15s;
   }
-  .tool:hover, .tool:focus-visible { border-color: var(--accent); outline: none; }
+  .tool:hover, .tool:focus-visible { border-color: color-mix(in srgb, var(--c) 70%, var(--line)); outline: none;
+    box-shadow: 0 6px 24px -12px color-mix(in srgb, var(--c) 60%, transparent); }
   .tool:active { transform: scale(.98); }
-  .tool .top { display: flex; align-items: center; gap: 10px; }
-  .tool .ico { font-size: 26px; width: 40px; height: 40px; display: grid; place-items: center; background: var(--panel2); border-radius: 10px; flex: none; }
-  .tool .name { font-weight: 600; font-size: 16px; }
-  .tool .desc { color: var(--muted); font-size: 13px; flex: 1; }
+  .tool .top { display: flex; align-items: center; gap: 12px; }
+  .tool .ico { font-size: 24px; width: 44px; height: 44px; display: grid; place-items: center; flex: none;
+    background: color-mix(in srgb, var(--c) 20%, var(--panel2)); border-radius: 12px; }
+  .tool .name { font-weight: 650; font-size: 16.5px; line-height: 1.2; }
+  .tool .desc { color: var(--muted); font-size: 13px; }
+  .tool .stats { font-size: 14px; font-variant-numeric: tabular-nums; flex: 1; }
+  .tool .stats b { font-weight: 650; }
+  .tool .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--muted); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--line); margin-right: 6px; vertical-align: 1px; }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
   @media (max-width: 560px) {
     .grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-    .tool { min-height: 0; padding: 12px; }
+    .tool { min-height: 0; padding: 12px; gap: 6px; }
     .tool .top { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .tool .ico { width: 38px; height: 38px; font-size: 21px; }
     .tool .name { font-size: 15px; }
     .tool .desc { display: none; }
+    .tool .stats { font-size: 13px; }
+    .tool .foot { flex-direction: column; align-items: flex-start; gap: 4px; font-size: 11.5px; }
     .tag { font-size: 11px; padding: 2px 7px; }
   }
   .tags { display: flex; flex-wrap: wrap; gap: 6px; }
   .tag { font-size: 11.5px; padding: 2px 8px; border-radius: 99px; background: var(--panel2); color: var(--muted); white-space: nowrap; }
   .tag.ok { color: var(--ok); }
   .tag.warn { color: var(--warn); }
+  .backlink { color: var(--accent); text-decoration: none; font-size: 14px; }
 
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
   .total { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; }
@@ -77,12 +109,25 @@
   .lsbar.warn > span { background: var(--warn); }
   .lsbar.bad > span { background: var(--bad); }
   .tablewrap { overflow-x: auto; }
+  @media (max-width: 560px) {
+    table.stack thead { display: none; }
+    table.stack tr { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    table.stack tr:last-child { border-bottom: 0; }
+    table.stack td { border: 0; padding: 0; }
+    table.stack td:first-child, table.stack td[colspan] { grid-column: 1 / -1; font-weight: 600; margin-bottom: 4px; }
+    table.stack td[colspan] { font-weight: 400; }
+    table.stack td.num { text-align: left; }
+    table.stack td[data-l]::before { content: attr(data-l); display: block; color: var(--muted); font-size: 11.5px; font-weight: 400; }
+    table.stack.two tr { grid-template-columns: 1fr auto; }
+    table.stack.two td:first-child { grid-column: auto; margin: 0; }
+  }
 
   button {
     font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line);
     border-radius: 10px; padding: 7px 12px; cursor: pointer;
   }
-  button:hover { border-color: var(--accent); }
+  .btnlike { color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 12px; }
+  button:hover, .btnlike:hover { border-color: var(--accent); }
   button:disabled { opacity: .5; cursor: default; }
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .msg { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--panel2); font-size: 13.5px; }
@@ -108,13 +153,24 @@
 <body>
 <main>
   <header>
-    <h1>Meine Tools</h1>
-    <span class="mode" id="mode"></span>
+    <div>
+      <h1 id="title">Meine Tools</h1>
+      <span class="mode" id="mode"></span>
+    </div>
+    <div class="hbtns">
+      <button type="button" class="hbtn" id="btnDiskret" aria-pressed="false" title="Gruppe „Sammlungen“ aus- oder einblenden"><span aria-hidden="true">👁</span><span class="lbl">Diskret</span></button>
+      <a class="hbtn btnlike" id="btnAdmin" href="#verwaltung" title="Speicher, GitHub-Sync, Sicherheitskopien, iPhone"><span aria-hidden="true">⚙︎</span><span class="lbl">Verwaltung</span></a>
+      <a class="backlink" id="btnBack" href="#" hidden>← Zu den Tools</a>
+    </div>
   </header>
 
-  <section class="grid" id="tools" aria-label="Tools"></section>
+  <div id="home">
+    <div class="status" id="status" role="status"><span class="dot"></span><div class="items"><span class="muted">Prüfe…</span></div></div>
+    <div id="groups"></div>
+  </div>
 
-  <h2>Speicher</h2>
+  <div id="admin" hidden>
+  <h2 id="speicher" style="margin-top:6px">Speicher</h2>
   <div class="panel">
     <div class="total">
       <div><span class="muted small">Belegt gesamt</span><br><strong id="usage">…</strong> <span class="muted small" id="quota"></span></div>
@@ -131,7 +187,7 @@
   </div>
 
   <div class="panel tablewrap" style="margin-top:12px">
-    <table>
+    <table class="stack">
       <thead><tr><th>Tool</th><th class="num">Datenbank</th><th class="num">localStorage</th><th class="num">Einträge</th></tr></thead>
       <tbody id="storeRows"></tbody>
     </table>
@@ -161,7 +217,7 @@
     </form>
     <div id="syncMsgs"></div>
     <div class="tablewrap" style="margin-top:12px">
-      <table>
+      <table class="stack two">
         <thead><tr><th>Tool</th><th>Letzter Abgleich auf diesem Gerät</th></tr></thead>
         <tbody id="syncRows"></tbody>
       </table>
@@ -179,8 +235,10 @@
       <li>Diese Seite in Safari öffnen → Teilen → <b>Zum Home-Bildschirm</b>. Tools von hier aus öffnen, dann bleiben sie im selben App-Fenster und teilen sich einen Speicher.</li>
       <li>Die App hat <b>eigenen Speicher, getrennt von Safari</b>. Daten einmal per Backup aus Safari exportieren und in der App importieren.</li>
       <li>Tools mit <span class="tag warn">Browserskript</span> brauchen Tampermonkey/Userscripts. Das läuft nur in Safari, nicht in der App. Diese Tools also in Safari nutzen.</li>
-      <li>In der App gibt es keine Zurück-Taste. Zur Startseite kommst du über einen Wisch vom linken Rand.</li>
+      <li>In der App gibt es keine Zurück-Taste. Zur Startseite kommst du in jedem Tool über das <b>⌂</b> im ☁︎-Feld unten links.</li>
+      <li><b>Diskret</b> (oben rechts) blendet die Gruppe „Sammlungen“ aus. Die Einstellung gilt pro Gerät und Browser.</li>
     </ul>
+  </div>
   </div>
 </main>
 
@@ -191,31 +249,36 @@
 
 const TOOLS = [
   { id: 'pokemon-go', name: 'GO Organizer', ico: '🟢', path: '/pokemon-go/',
-    desc: 'Pokémon GO: Pokémon, Freunde, Postkarten, Vivillon',
+    desc: 'Pokémon GO: Pokémon, Freunde, Postkarten, Vivillon', group: 'pokemon', color: '#4cc38a', count: [['pokemon', 'Pokémon'], ['friends', 'Freunde']],
     dbs: ['pokemon-go-tool'], ls: ['go-organizer'], tags: ['sync'], toolsync: true },
   { id: 'pokemon-home', name: 'Pokémon-Boxen', ico: '📦', path: '/pokemon-home/',
-    desc: 'Pokémon aus Pokémon Home verwalten',
+    desc: 'Pokémon aus Pokémon Home verwalten', group: 'pokemon', color: '#5b9dff', count: [['mons', 'Pokémon']],
     dbs: ['pokemon-home-tool'], ls: ['pkbox.'], tags: ['sync'], toolsync: true },
   { id: 'kartenbinder', name: 'Kartenbinder', ico: '🃏', path: '/kartenbinder/',
-    desc: 'Pokémon TCG und TCG Pocket',
+    desc: 'Pokémon TCG und TCG Pocket', group: 'pokemon', color: '#ef6464', count: [['pocket', 'Pocket'], ['tcg', 'TCG']],
     dbs: ['kartenbinder'], ls: ['kartenbinder.', 'kb.'], tags: ['sync'], toolsync: true },
   { id: 'videothek', name: 'Videothek', ico: '🎬', path: '/videothek/',
-    desc: 'YouTube-Bibliothek mit Reihen und Reactions',
+    desc: 'YouTube-Bibliothek mit Reihen und Reactions', group: 'medien', color: '#ff7a59', count: [['videos', 'Videos'], ['series', 'Reihen']],
     dbs: ['videothek-tool'], ls: ['videothek:'], tags: ['sync'], toolsync: true },
   { id: 'b-organizer', name: 'Babe Organizer', ico: '🗂️', path: '/b-organizer/',
-    desc: 'Babepedia-Profile importieren und verwalten',
+    desc: 'Babepedia-Profile importieren und verwalten', group: 'privat', color: '#c084fc', count: [['entries', 'Profile']],
     dbs: ['bp-organizer'], ls: ['bp-organizer', 'bp_batch_data'], tags: ['sync', 'script'], toolsync: true },
   { id: 'Image-Ranker', name: 'Image Ranker', ico: '🏆', path: '/Image-Ranker/',
-    desc: 'Bilder per Vergleich ranken',
+    desc: 'Bilder per Vergleich ranken', group: 'privat', color: '#f5c542', count: [['images', 'Bilder']],
     dbs: ['ImageRankerDB', 'ranker-sync'], ls: ['ranker.'], tags: ['sync'], toolsync: true, syncId: 'image-ranker' },
   { id: 'nh-favoriten', name: 'Favoriten-Archiv', ico: '📚', path: '/nh-favoriten/',
-    desc: 'nhentai-Favoriten archivieren und synchronisieren',
+    desc: 'nhentai-Favoriten archivieren und synchronisieren', group: 'privat', color: '#f472b6', count: [['g', 'Favoriten']],
     dbs: ['nh-fav-archiv'], ls: ['nhfav-'], tags: ['sync', 'script'], toolsync: true },
   { id: 'fh6-garage', name: 'FH6 Garage', ico: '🏎️', path: '/fh6-garage/',
-    desc: 'Forza Horizon 6: Autos mit Werten nach Upgrade',
+    desc: 'Forza Horizon 6: Autos mit Werten nach Upgrade', group: 'medien', color: '#38bdf8', count: [['eintraege', 'Autos']],
     dbs: ['fh6-garage'], ls: ['fh6garage.'], tags: ['sync'], toolsync: true },
   { id: '_toolsync', name: 'Sync (Abgleich-Stand)', ico: '☁︎', hidden: true, dbs: ['toolsync'], ls: [], tags: [] },
   { id: '_transfer', name: 'Übergabe zwischen Tools', ico: '⇄', hidden: true, dbs: ['tool-transfer'], ls: [], tags: [] },
+];
+const GROUPS = [
+  { id: 'pokemon', name: 'Pokémon' },
+  { id: 'medien', name: 'Medien & Spiele' },
+  { id: 'privat', name: 'Sammlungen', diskret: true },
 ];
 const SELF = { name: 'Startseite', ls: ['startseite.', 'toolsync.'] };
 const LS_LIMIT = 5 * 1024 * 1024;
@@ -237,18 +300,100 @@ function msg(text, kind) {
 }
 
 // ---------- Kacheln ----------
-const TAG_HTML = {
-  sync: '<span class="tag ok" title="Daten werden zusätzlich auf GitHub gespeichert">☁︎ GitHub-Sync</span>',
-  script: '<span class="tag warn" title="Braucht ein Tampermonkey-Skript – am iPhone nur in Safari">Browserskript</span>',
-  local: '<span class="tag" title="Daten liegen nur in diesem Browser – Backups machen">nur lokal</span>',
-};
+const DISKRET_KEY = 'startseite.diskret';
+let diskret = false;
+try { diskret = localStorage.getItem(DISKRET_KEY) === '1'; } catch (e) {}
+const visibleTools = () => TOOLS.filter(t => !t.hidden && !(diskret && GROUPS.some(g => g.diskret && g.id === t.group)));
+let OVERVIEW = null;   // { cfg, dbs:Set, sync:{meta,safety} } – für Kacheln und Statuszeile
+
+const nf = n => n.toLocaleString('de-DE');
+function ago(t) {
+  const s = (Date.now() - t) / 1000;
+  if (s < 90) return 'gerade eben';
+  if (s < 3600) return `vor ${Math.round(s / 60)} Min.`;
+  if (s < 86400) return `vor ${Math.round(s / 3600)} Std.`;
+  const d = Math.round(s / 86400);
+  return d === 1 ? 'gestern' : d < 30 ? `vor ${d} Tagen` : 'am ' + new Date(t).toLocaleDateString('de-DE');
+}
+function toolInfo(t) {
+  const o = OVERVIEW;
+  if (!o) return { stats: '<span class="muted">…</span>', dot: '', when: '' };
+  const m = o.sync && o.sync.meta[t.syncId || t.id];
+  const hasDb = t.dbs.some(n => o.dbs.has(n));
+  let stats = '';
+  if (m && m.counts && t.count) {
+    const parts = t.count.filter(([c]) => m.counts[c] != null).map(([c, l]) => `<b>${nf(m.counts[c])}</b> ${esc(l)}`);
+    stats = parts.join(' · ');
+  }
+  if (!stats) stats = hasDb ? '<span class="muted">Daten vorhanden</span>' : '<span class="muted">Auf diesem Gerät noch leer</span>';
+  let dot = '', when = '';
+  if (!o.cfg) { when = 'Nur lokal'; }
+  else if (m && m.lastSync) {
+    const days = (Date.now() - m.lastSync) / 864e5;
+    dot = days <= 7 ? 'ok' : 'warn';
+    when = 'Abgeglichen ' + ago(m.lastSync);
+  } else { when = 'Noch nicht abgeglichen'; }
+  return { stats, dot, when };
+}
 function renderTools() {
-  $('#tools').innerHTML = TOOLS.filter(t => !t.hidden).map(t => `
-    <a class="tool" href="${t.path}">
-      <div class="top"><div class="ico" aria-hidden="true">${t.ico}</div><div class="name">${esc(t.name)}</div></div>
-      <div class="desc">${esc(t.desc)}</div>
-      <div class="tags">${(t.tags.includes('sync') ? [] : ['local']).concat(t.tags).map(k => TAG_HTML[k]).join('')}<span class="tag" id="size-${t.id}">…</span></div>
-    </a>`).join('');
+  const vis = visibleTools();
+  $('#groups').innerHTML = GROUPS.map(g => {
+    const list = vis.filter(t => t.group === g.id);
+    if (!list.length) return '';
+    return `<section class="group" aria-label="${esc(g.name)}">
+      <div class="ghead"><h2>${esc(g.name)}</h2></div>
+      <div class="grid">${list.map(t => {
+        const i = toolInfo(t);
+        return `<a class="tool" href="${t.path}" style="--c:${t.color}">
+          <div class="top"><div class="ico" aria-hidden="true">${t.ico}</div><div><div class="name">${esc(t.name)}</div></div></div>
+          <div class="desc">${esc(t.desc)}</div>
+          <div class="stats">${i.stats}</div>
+          <div class="foot"><span>${i.dot ? `<span class="dot ${i.dot}"></span>` : ''}${esc(i.when)}</span>${t.tags.includes('script') ? TAG_HTML.script : ''}</div>
+        </a>`;
+      }).join('')}</div>
+    </section>`;
+  }).join('');
+  $('#btnDiskret').setAttribute('aria-pressed', String(diskret));
+  $('#btnDiskret').firstElementChild.textContent = diskret ? '🙈' : '👁';
+}
+const TAG_HTML = {
+  script: '<span class="tag warn" title="Braucht ein Tampermonkey-Skript – am iPhone nur in Safari">Browserskript</span>',
+};
+
+// ---------- Statuszeile ----------
+async function loadOverview() {
+  const dbl = await listDatabases();
+  const [sync, persisted] = await Promise.all([readSyncDb(), readPersisted()]);
+  const ls = readLocalStorage();
+  OVERVIEW = { cfg: readSyncCfg(), dbs: new Set((dbl.list || []).map(d => d.name)), sync, persisted, ls };
+  renderTools();
+  renderStatus();
+}
+function renderStatus() {
+  const o = OVERVIEW, items = [];
+  let level = 'ok';
+  const bump = l => { if (l === 'bad' || (l === 'warn' && level === 'ok')) level = l; };
+  if (!o.cfg) { items.push('<a href="#sync">GitHub-Sync ist auf diesem Gerät nicht eingerichtet</a>'); bump('warn'); }
+  if (o.ls && !o.ls.error) {
+    const r = o.ls.total / LS_LIMIT;
+    if (r > 0.9) { items.push('<a href="#speicher">localStorage fast voll</a>'); bump('bad'); }
+    else if (r > 0.7) { items.push('<a href="#speicher">localStorage über 70 % belegt</a>'); bump('warn'); }
+  }
+  if (o.cfg && o.sync) {
+    const stale = visibleTools().filter(t => {
+      const m = o.sync.meta[t.syncId || t.id];
+      return m && m.lastSync && Date.now() - m.lastSync > 14 * 864e5;
+    });
+    if (stale.length) { items.push(`${stale.map(t => esc(t.name)).join(', ')}: über 2 Wochen nicht abgeglichen <span class="muted">(vor Änderungen einmal öffnen)</span>`); bump('warn'); }
+  }
+  if (o.persisted === false) items.push('<a href="#speicher" class="muted">Dauerhafter Speicher nicht aktiv</a>');
+  if (!items.length || (level === 'ok' && items.length === 1 && o.persisted === false)) {
+    const last = o.sync ? Math.max(0, ...visibleTools().map(t => (o.sync.meta[t.syncId || t.id] || {}).lastSync || 0)) : 0;
+    items.unshift('Alles in Ordnung' + (last ? `<span class="muted"> · zuletzt abgeglichen ${ago(last)}</span>` : ''));
+  }
+  const el = $('#status');
+  el.className = 'status ' + (level === 'ok' ? '' : level);
+  el.innerHTML = `<span class="dot ${level}"></span><div class="items">${items.map(x => `<span>${x}</span>`).join('')}</div><a class="go" href="#verwaltung">Verwaltung ›</a>`;
 }
 
 function renderMode() {
@@ -404,7 +549,8 @@ async function measure() {
 
     const rows = [];
     const lsShare = id => ls.byTool && ls.byTool[id];
-    for (const t of TOOLS) {
+    const shown = TOOLS.filter(t => t.hidden || visibleTools().includes(t));
+    for (const t of shown) {
       let dbBytes = null, count = null, err = null, found = false, blobs = 0;
       for (const name of t.dbs) {
         if (!existing.has(name)) continue;
@@ -417,28 +563,25 @@ async function measure() {
       }
       const l = lsShare(t.id);
       rows.push({ t, dbBytes, count, err, found, ls: l, blobs });
-      const total = (dbBytes || 0) + (l ? l.bytes : 0);
-      const chip = $('#size-' + t.id);
-      if (chip) chip.textContent = found || l ? fmt(total) : 'noch leer';
     }
 
-    const others = (dbl.list || []).filter(d => d.name && !TOOLS.some(t => t.dbs.includes(d.name)));
+    const others = (dbl.list || []).filter(d => d.name && !TOOLS.some(t => t.dbs.includes(d.name)) && !/-duelle$|^tool-/.test(d.name));
 
     $('#storeRows').innerHTML = rows.map(r => {
       const lsR = r.ls ? r.ls.bytes / LS_LIMIT : 0;
       const lsCls = lsR > 0.1 ? 'bad' : lsR > 0.05 ? 'warn' : '';
       return `<tr>
         <td>${r.t.ico} ${esc(r.t.name)}${r.err ? `<div class="small" style="color:var(--bad)">${esc(r.err)}</div>` : ''}</td>
-        <td class="num">${r.found ? fmt(r.dbBytes) + (r.blobs > 0 ? `<div class="small muted">Daten ${fmt(r.dbBytes - r.blobs)} · Bilder ${fmt(r.blobs)}</div>` : '') : dbl.error ? '?' : '<span class="muted">keine</span>'}</td>
-        <td class="num">${r.ls ? fmt(r.ls.bytes) + `<div class="lsbar ${lsCls}"><span style="width:${Math.min(100, lsR * 100 * 10).toFixed(0)}%"></span></div>` : '<span class="muted">–</span>'}</td>
-        <td class="num">${r.count != null ? r.count.toLocaleString('de-DE') : '–'}</td>
+        <td class="num" data-l="Datenbank">${r.found ? fmt(r.dbBytes) + (r.blobs > 0 ? `<div class="small muted">Daten ${fmt(r.dbBytes - r.blobs)} · Bilder ${fmt(r.blobs)}</div>` : '') : dbl.error ? '?' : '<span class="muted">keine</span>'}</td>
+        <td class="num" data-l="localStorage">${r.ls ? fmt(r.ls.bytes) + `<div class="lsbar ${lsCls}"><span style="width:${Math.min(100, lsR * 100 * 10).toFixed(0)}%"></span></div>` : '<span class="muted">–</span>'}</td>
+        <td class="num" data-l="Einträge">${r.count != null ? r.count.toLocaleString('de-DE') : '–'}</td>
       </tr>`;
     }).join('')
       + (ls.unknown && ls.unknown.length ? `<tr><td colspan="4"><details style="margin:0"><summary>Nicht zugeordnete localStorage-Schlüssel (${ls.unknown.length}, ${fmt(ls.unknown.reduce((a, b) => a + b.bytes, 0))})</summary><div class="small muted" style="margin-top:6px">${ls.unknown.sort((a, b) => b.bytes - a.bytes).map(u => `<code>${esc(u.key)}</code> ${fmt(u.bytes)}`).join('<br>')}</div></details></td></tr>` : '')
       + (others.length ? `<tr><td colspan="4"><details style="margin:0"><summary>Weitere Datenbanken unter dieser Adresse (${others.length})</summary><div class="small muted" style="margin-top:6px">${others.map(d => `<code>${esc(d.name)}</code>`).join(' ')}</div></details></td></tr>` : '');
 
     // Hinweis auf große localStorage-Nutzer (Regel: deutlich unter 500 KB)
-    for (const t of TOOLS) {
+    for (const t of shown) {
       const l = lsShare(t.id);
       if (l && l.bytes > 500 * 1024) msg(`<b>${esc(t.name)}</b> belegt ${fmt(l.bytes)} im localStorage. Die Regel ist deutlich unter 500 KB, die Daten gehören in die IndexedDB.`, 'warn');
     }
@@ -524,7 +667,7 @@ function readSyncDb() {
         const out = { meta: {}, safety: [] };
         const t = d.transaction(['meta', 'safety'], 'readonly');
         const mc = t.objectStore('meta').openCursor();
-        mc.onsuccess = () => { const c = mc.result; if (c) { out.meta[c.key] = { lastSync: c.value.lastSync }; c.continue(); } };
+        mc.onsuccess = () => { const c = mc.result; if (c) { const v = c.value || {}, counts = {}; for (const k in (v.h || {})) counts[k] = Object.keys(v.h[k] || {}).length; out.meta[c.key] = { lastSync: v.lastSync, counts }; c.continue(); } };
         const sc = t.objectStore('safety').openCursor();
         sc.onsuccess = () => { const c = sc.result; if (c) { out.safety.push({ key: c.key, tool: c.value.tool, reason: c.value.reason, at: c.value.at }); c.continue(); } };
         t.oncomplete = () => { d.close(); resolve(out); };
@@ -551,7 +694,7 @@ function downloadSafety(key) {
 async function renderSyncStatus() {
   const s = await readSyncDb();
   const fmtT = t => t ? new Date(t).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : 'noch nie';
-  $('#syncRows').innerHTML = TOOLS.filter(t => t.toolsync).map(t =>
+  $('#syncRows').innerHTML = visibleTools().filter(t => t.toolsync).map(t =>
     `<tr><td>${t.ico} ${esc(t.name)}</td><td>${s ? fmtT(s.meta[t.syncId || t.id] && s.meta[t.syncId || t.id].lastSync) : '?'}</td></tr>`).join('');
   const list = s ? s.safety.sort((a, b) => String(b.at).localeCompare(String(a.at))) : [];
   $('#safetyList').innerHTML = list.length
@@ -571,11 +714,40 @@ $('#btnPersist').addEventListener('click', async () => {
 });
 $('#btnRefresh').addEventListener('click', measure);
 
+// ---------- Ansichten ----------
+let measured = false;
+function route() {
+  const h = location.hash.replace('#', '');
+  const admin = ['verwaltung', 'sync', 'speicher'].includes(h);
+  $('#home').hidden = admin; $('#admin').hidden = !admin;
+  $('#btnAdmin').hidden = admin; $('#btnBack').hidden = !admin; $('#btnDiskret').hidden = admin;
+  $('#title').textContent = admin ? 'Verwaltung' : 'Meine Tools';
+  document.title = admin ? 'Verwaltung · Meine Tools' : 'Meine Tools';
+  if (admin) {
+    const target = h === 'verwaltung' ? null : document.getElementById(h);
+    const jump = () => { if (target) target.scrollIntoView({ block: 'start' }); };
+    if (target) jump(); else window.scrollTo(0, 0);
+    // Die Tabellen oben füllen sich erst nach dem Messen – danach nochmal zum Ziel springen
+    Promise.all([measured ? null : (measured = true, measure()), renderSyncStatus()]).then(jump);
+  } else {
+    window.scrollTo(0, 0);
+    loadOverview();
+  }
+}
+$('#btnBack').addEventListener('click', e => { e.preventDefault(); history.pushState(null, '', location.pathname); route(); });
+window.addEventListener('hashchange', route);
+$('#btnDiskret').addEventListener('click', () => {
+  diskret = !diskret;
+  try { diskret ? localStorage.setItem(DISKRET_KEY, '1') : localStorage.removeItem(DISKRET_KEY); } catch (e) {}
+  renderTools(); if (OVERVIEW) renderStatus();
+  measured = false;
+});
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && $('#admin').hidden) loadOverview(); });
+
 renderMode();
 renderTools();
 fillSyncForm();
-measure();
-renderSyncStatus();
+route();
 </script>
 </body>
 </html>
