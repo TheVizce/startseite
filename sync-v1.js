@@ -20,6 +20,8 @@
  *                     geänderte Teile. Die Zahl darf später nicht mehr geändert werden.
  *   firstSync: 'cloud' – beim ersten Abgleich eines Geräts den Cloud-Stand vollständig übernehmen
  *                     (nur lokal vorhandene Einträge entfallen; sie stehen in der Sicherheitskopie)
+ *   autoSync: false – kein automatischer Abgleich bei Tab-Wechsel (wieder sichtbar/verborgen), Wieder-Online und Verlassen der Seite;
+ *                     abgeglichen wird dann nur bei start() und bei syncNow() (z. B. per Knopf). Standard: true (wie bisher)
  *   stampDelay: ms  – Wartezeit vor dem Erkennen von Änderungen (bei großen Datenmengen höher)
  *   badge: false | { bottom, left }, home: false
  *   get darf auch ein Promise liefern (z. B. Daten direkt aus der IndexedDB lesen)
@@ -533,14 +535,16 @@
     function start() {
       if (started) return syncNow();
       started = true;
-      document.addEventListener('visibilitychange', () => {
-        if (!readConfig()) return;
-        if (document.visibilityState === 'hidden') { if (dirty) syncNow(); }
-        else if (Date.now() - lastSync > 20000 || dirty) syncNow();
-      });
-      window.addEventListener('online', () => { if (readConfig()) syncNow(); });
+      if (opts.autoSync !== false) {
+        document.addEventListener('visibilitychange', () => {
+          if (!readConfig()) return;
+          if (document.visibilityState === 'hidden') { if (dirty) syncNow(); }
+          else if (Date.now() - lastSync > 20000 || dirty) syncNow();
+        });
+        window.addEventListener('online', () => { if (readConfig()) syncNow(); });
+      }
       window.addEventListener('storage', e => { if (e.key === CFG_KEY) syncNow(); });
-      window.addEventListener('pagehide', () => { if (dirty && readConfig()) syncNow(); });
+      if (opts.autoSync !== false) window.addEventListener('pagehide', () => { if (dirty && readConfig()) syncNow(); });
       return syncNow();
     }
 
@@ -627,5 +631,5 @@
     };
   }
 
-  window.ToolSync = { version: 1, create, readConfig, CONFIG_KEY: CFG_KEY, DB_NAME, github: { headers, repoUrl, fileUrl, fail: ghFail, error: syncError, b64enc } };
+  window.ToolSync = { version: 1, features: ['autoSync'], create, readConfig, CONFIG_KEY: CFG_KEY, DB_NAME, github: { headers, repoUrl, fileUrl, fail: ghFail, error: syncError, b64enc } };
 })();
