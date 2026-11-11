@@ -16,7 +16,7 @@ Gemeinsamer Abgleich für die Tools mit dem privaten Repo `TheVizce/tool-daten`.
 
 | Tool | Ablage im Daten-Repo |
 |---|---|
-| GO Organizer | `pokemon-go.json` |
+| GO Organizer | Ordner `pokemon-go/` (main.json + 16 Teildateien, seit 11.11.2026; die alte `pokemon-go.json` wird nicht mehr benutzt) |
 | Pokémon-Boxen | `pokemon-home.json` |
 | Babe Organizer | Ordner `b-organizer/` (main.json + 32 Teildateien) – eigene Bilder bleiben lokal |
 | Favoriten-Archiv | Ordner `nh-favoriten/` (main.json + 32 Teildateien) – Cover und API-Key bleiben lokal |
