@@ -260,9 +260,14 @@ const TOOLS = [
   { id: 'videothek', name: 'Videothek', ico: '🎬', path: '/videothek/',
     desc: 'YouTube-Bibliothek mit Reihen und Reactions', group: 'medien', color: '#ff7a59', count: [['videos', 'Videos'], ['series', 'Reihen']],
     dbs: ['videothek-tool'], ls: ['videothek:'], tags: ['sync'], toolsync: true },
-  { id: 'b-organizer', name: 'Babe Organizer', ico: '🗂️', path: '/b-organizer/',
-    desc: 'Babepedia-Profile importieren und verwalten', group: 'privat', color: '#c084fc', count: [['entries', 'Profile']],
+  { id: 'b-organizer', name: 'Organizer · Personen', ico: '🗂️', path: '/b-organizer/', storageName: 'Organizer (Personen + Charaktere)',
+    desc: 'Babepedia-Profile importieren, bewerten und verwalten', group: 'privat', color: '#c084fc', count: [['entries', 'Profile']],
     dbs: ['bp-organizer'], ls: ['bp-organizer', 'bp_batch_data'], tags: ['sync', 'script'], toolsync: true },
+  // Zweiter Reiter desselben Tools: gleiche Datenbank (Schlüssel mit Präfix "chars:"), eigener Sync-Ordner b-organizer-chars/.
+  // storage: false = in der Speichertabelle nicht doppelt zählen (steckt in der Zeile darüber).
+  { id: 'b-organizer-chars', name: 'Organizer · Charaktere', ico: '🎭', path: '/b-organizer/?k=chars',
+    desc: 'Fiktive Charaktere aus Spielen, Anime, Serien und Filmen', group: 'privat', color: '#a78bfa', count: [['entries', 'Charaktere']],
+    dbs: ['bp-organizer'], ls: [], tags: ['sync'], toolsync: true, storage: false },
   { id: 'Image-Ranker', name: 'Image Ranker', ico: '🏆', path: '/Image-Ranker/',
     desc: 'Bilder per Vergleich ranken', group: 'privat', color: '#f5c542', count: [['images', 'Bilder']],
     dbs: ['ImageRankerDB', 'ranker-sync'], ls: ['ranker.'], tags: ['sync'], toolsync: true, syncId: 'image-ranker' },
@@ -552,7 +557,7 @@ async function measure() {
 
     const rows = [];
     const lsShare = id => ls.byTool && ls.byTool[id];
-    const shown = TOOLS.filter(t => t.hidden || visibleTools().includes(t));
+    const shown = TOOLS.filter(t => t.storage !== false && (t.hidden || visibleTools().includes(t)));
     for (const t of shown) {
       let dbBytes = null, count = null, err = null, found = false, blobs = 0;
       for (const name of t.dbs) {
@@ -574,7 +579,7 @@ async function measure() {
       const lsR = r.ls ? r.ls.bytes / LS_LIMIT : 0;
       const lsCls = lsR > 0.1 ? 'bad' : lsR > 0.05 ? 'warn' : '';
       return `<tr>
-        <td>${r.t.ico} ${esc(r.t.name)}${r.err ? `<div class="small" style="color:var(--bad)">${esc(r.err)}</div>` : ''}</td>
+        <td>${r.t.ico} ${esc(r.t.storageName || r.t.name)}${r.err ? `<div class="small" style="color:var(--bad)">${esc(r.err)}</div>` : ''}</td>
         <td class="num" data-l="Datenbank">${r.found ? fmt(r.dbBytes) + (r.blobs > 0 ? `<div class="small muted">Daten ${fmt(r.dbBytes - r.blobs)} · Bilder ${fmt(r.blobs)}</div>` : '') : dbl.error ? '?' : '<span class="muted">keine</span>'}</td>
         <td class="num" data-l="localStorage">${r.ls ? fmt(r.ls.bytes) + `<div class="lsbar ${lsCls}"><span style="width:${Math.min(100, lsR * 100 * 10).toFixed(0)}%"></span></div>` : '<span class="muted">–</span>'}</td>
         <td class="num" data-l="Einträge">${r.count != null ? r.count.toLocaleString('de-DE') : '–'}</td>

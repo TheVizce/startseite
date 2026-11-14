@@ -21,7 +21,8 @@ Gemeinsamer Abgleich für die Tools mit dem privaten Repo `TheVizce/tool-daten`.
 |---|---|
 | GO Organizer | Ordner `pokemon-go/` (main.json + 16 Teildateien, seit 11.11.2026; die alte `pokemon-go.json` wird nicht mehr benutzt) |
 | Pokémon-Boxen | Ordner `pokemon-home/` (main.json + 16 Teildateien, seit 11.11.2026; die alte `pokemon-home.json` wird nicht mehr benutzt) |
-| Babe Organizer | Ordner `b-organizer/` (main.json + 32 Teildateien) – eigene Bilder bleiben lokal |
+| Organizer · Personen | Ordner `b-organizer/` (main.json + 32 Teildateien) – eigene Bilder bleiben lokal |
+| Organizer · Charaktere | Ordner `b-organizer-chars/` (main.json + 8 Teildateien), gleiche Datenbank `bp-organizer` (Schlüssel mit Präfix `chars:`) |
 | Favoriten-Archiv | Ordner `nh-favoriten/` (main.json + 32 Teildateien) – Cover und API-Key bleiben lokal |
 | Image Ranker | Ordner `image-ranker/` (main.json + 64 Teildateien); Bilddateien in Paketen (ca. 10 MB) im privaten Repo `ranker-bilder` – nicht am Handy |
 | Kartenbinder | Ordner `kartenbinder/` (main.json + 16 Teildateien); beim ersten Abgleich eines Geräts gilt der Cloud-Stand |
