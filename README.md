@@ -27,6 +27,7 @@ Gemeinsamer Abgleich für die Tools mit dem privaten Repo `TheVizce/tool-daten`.
 | Kartenbinder | Ordner `kartenbinder/` (main.json + 16 Teildateien); beim ersten Abgleich eines Geräts gilt der Cloud-Stand |
 | Videothek | Ordner `videothek/` (main.json + 16 Teildateien); YouTube-Schlüssel bleibt pro Gerät |
 | FH6 Garage | `fh6-garage.json` (Garage-Einträge, Promo-Häkchen); Fahrzeugliste kommt aus dem Repo |
+| Lesestand | Ordner `lesestand/` (main.json + 16 Teildateien); MangaDex/MAL-Abfragen über Tampermonkey-Skript |
 
 Alle Tools nutzen diesen gemeinsamen Sync.
 
