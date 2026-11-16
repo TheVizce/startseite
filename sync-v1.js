@@ -28,6 +28,9 @@
  *   beforeSync: async ({ config, progress }) => {} – läuft vor jedem Abgleich (z. B. Bilder hochladen);
  *                     wirft er einen Fehler, wird in diesem Durchgang nichts abgeglichen
  *   onStatus: (status, text) => {}
+ *   mergeItem: (coll, lokal, entfernt, { localTime, remoteTime, remoteWins }) => eintrag | null
+ *                   – Listeneintrag auf beiden Seiten verschieden: Tool führt selbst zusammen (z. B. Feld für Feld);
+ *                     null/undefined = wie bisher, die jüngste Fassung gewinnt
  *
  * Speicher:
  *   localStorage  "toolsync.config"   – Repo + Token (klein, wird auf der Startseite eingetragen)
@@ -323,8 +326,19 @@
             if (hasL) res.localChanged = true;
           } else if (tVal >= 0) {
             const fromRemote = hasR && (tR >= tL);
-            const val = fromRemote ? Rm.get(id) : L[c].get(id);
-            if (fromRemote && (!hasL || hash(L[c].get(id)) !== hash(val))) res.localChanged = true;
+            let val = fromRemote ? Rm.get(id) : L[c].get(id);
+            // Optional (opts.mergeItem): Tool führt beide Fassungen eines Eintrags selbst zusammen, z. B. Feld für Feld.
+            // Ohne Hook oder bei undefined/null bleibt es bei „jüngste Fassung gewinnt“.
+            if (hasL && hasR && typeof opts.mergeItem === 'function') {
+              const lv = L[c].get(id), rv = Rm.get(id);
+              if (hash(lv) !== hash(rv)) {
+                try {
+                  const m = opts.mergeItem(c, clone(lv), clone(rv), { localTime: tL, remoteTime: tR, remoteWins: fromRemote });
+                  if (m != null) val = m;
+                } catch (e) { console.warn('ToolSync: mergeItem fehlgeschlagen', e); }
+              }
+            }
+            if (hasL ? hash(L[c].get(id)) !== hash(val) : fromRemote) res.localChanged = true;
             M.set(id, val); U[id] = fromRemote ? tR : tL;
           }
         }

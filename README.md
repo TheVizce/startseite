@@ -42,6 +42,8 @@ Alle Tools nutzen diesen gemeinsamen Sync.
 
 Tool anbinden: `<script src="/startseite/sync-v1.js"></script>` einbinden, dann `ToolSync.create({ tool, collections, fields, get, apply })`, nach dem Laden `start()` und nach jedem erfolgreichen Speichern `changed()` aufrufen (Details oben in `sync-v1.js`). Bei inkompatiblen Änderungen eine neue Datei `sync-v2.js` anlegen statt v1 zu ändern.
 
+Optional `mergeItem(collection, lokal, entfernt, { localTime, remoteTime, remoteWins })`: wird aufgerufen, wenn ein Listeneintrag auf beiden Seiten existiert und verschieden ist. Das Tool kann daraus eine zusammengeführte Fassung bauen (z. B. Feld für Feld nach eigenen Zeitstempeln); die wird lokal übernommen und hochgeladen. Rückgabe `undefined`/`null` = wie bisher, die jüngste Fassung gewinnt. Genutzt vom Babe Organizer.
+
 ## Neues Tool eintragen
 In `index.html` oben in der Liste `TOOLS` einen Eintrag ergänzen: Pfad, Name, Emoji, Gruppe, Farbe, Zähler (`count`), Datenbankname(n) und localStorage-Präfix(e). Tag `sync` für Tools mit GitHub-Sync, `script` für Tools mit Tampermonkey-Skript.
 
